@@ -1,0 +1,15 @@
+[package]
+name = "rustcalc-4"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rug = "1.19"
+peg = "0.8.1"
+regex = "1.8.1"
+rustyline = "10.0.0"
+rustyline-derive = "0.7.0"
+rand = "0.8.5"
+ansi_term = "0.12.1"

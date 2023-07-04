@@ -1,0 +1,64 @@
+# base units
+second / s / sec
+kilogram / kg
+mole / mol
+candela / cd
+kelvin / K
+ampere / amp / A
+meter / m
+
+# derived (metric)
+hertz / Hz: 1 s^-1
+kilohertz / kHz: 1000 Hz
+megahertz / MHz: 1000 kHz
+gigahertz / GHz: 1000 MHz
+
+picometer / pm: 0.000000000001 m
+nanometer / nm: 0.000000001 m
+micrometer / um / μm: 0.000001 m
+millimeter / mm: 0.001 m
+centimeter / cm: 0.01 m
+kilometer / km: 1000 m
+
+minute / min: 60 s
+hour / h: 60 min
+
+nanogram / ng: 0.000000000001 kg
+microgram / ug / μg: 0.000000001 kg
+milligram / mg: 0.000001 kg
+gram / g: 0.001 kg
+ton / ton: 1000 kg
+
+litre / liter: 1000 cm^3
+
+micromole / umol / μmol: 0.000001 mol
+
+molar / M: 1 mole/liter
+
+newton / N: 1 kg*m/s^2
+micronewton / uN / μN: 0.000001 N
+millnewton / mN: 0.001 N
+kilonewton / kN: 1000 N
+meganewton / MN: 1000000 N
+giganewton / GN: 1000000000 N
+
+millisecond / ms: 0.001 s
+microsecond / us / μs: 0.001 ms
+nanosecond / ns: 0.001 us
+picosecond / ps: 0.001 ns
+
+# derived (imperial)
+inch / in: 2.54 cm
+foot / ft: 12 in
+mile / mi: 5280 ft
+
+# derived (other)
+furlong / furlongs: 660 ft
+parsec / parsecs: 30856775814913673 m
+lightyear / ly: 9460730472580800 m
+smoot / smoots: 1.702 m
+barn / barns: 0.0000000000000000000000000001 m^2
+outhouse: 0.000001 barn
+shed: 0.000000000000000000000001 barn
+nanoacre: 4.0468564224 mm^2
+shake: 10 ns
