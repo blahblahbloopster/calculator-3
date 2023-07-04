@@ -4,7 +4,7 @@ use rug::{Float, Complex};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct UnitName {
-    main: String, others: Vec<String>
+    pub main: String, pub others: Vec<String>
 }
 
 impl Display for UnitName {
@@ -20,7 +20,7 @@ impl Debug for UnitName {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct BaseUnit(UnitName);
+pub struct BaseUnit(pub UnitName);
 
 #[derive(PartialEq, Clone)]
 pub enum UnitTree {
@@ -48,6 +48,10 @@ impl Debug for UnitTree {
 }
 
 impl UnitTree {
+    pub fn dimensionless() -> UnitTree {
+        UnitTree::Product(vec![], None)
+    }
+
     pub fn metricify(&self) -> (HashMap<BaseUnit, i32>, Float) {
         let mut out = HashMap::new();
         let mut mul = Float::with_val(1024, 1);
@@ -56,7 +60,7 @@ impl UnitTree {
             UnitTree::Product(items, _) => {
                 for item in items {
                     let (gotten, k) = item.metricify();
-                    mul *= k;  // TEST ME
+                    mul *= k;
                     for (unit, power) in gotten {
                         if out.contains_key(&unit) {
                             *out.get_mut(&unit).unwrap() += power
@@ -68,7 +72,7 @@ impl UnitTree {
             },
             UnitTree::Quotient(a, b, _) => {
                 let (gotten, k) = a.metricify();
-                mul *= k;  // TEST ME
+                mul *= k;
                 for (unit, power) in gotten {
                     if out.contains_key(&unit) {
                         *out.get_mut(&unit).unwrap() += power
@@ -78,7 +82,7 @@ impl UnitTree {
                 }
 
                 let (gotten, k) = b.metricify();
-                mul /= k;  // TEST ME
+                mul /= k;
                 for (unit, power) in gotten {
                     if out.contains_key(&unit) {
                         *out.get_mut(&unit).unwrap() -= power
@@ -101,11 +105,38 @@ impl UnitTree {
                 }
             }
         }
+
+        let mut to_remove = vec![];
+        for (k, v) in &out {
+            if *v == 0 {
+                to_remove.push(k.clone())
+            }
+        }
+
+        for item in to_remove {
+            out.remove(&item);
+        }
+
         (out, mul)
     }
 
     pub fn compatible(&self, other: &UnitTree) -> bool {
         self.metricify().0 == other.metricify().0
+    }
+
+    // pub fn multiply(self, k: Float) -> UnitTree {
+    //     match self {
+    //         Self::Scale(inner, factor, name) => 
+    //         _ => {}
+    //     }
+    // }
+
+    pub fn is_dimensionless(&self) -> bool {
+        self.metricify().0.is_empty()
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.is_dimensionless() && (self.metricify().1 - Float::with_val(1024, 1)).to_f64().abs() < 0.00001
     }
 }
 
@@ -113,6 +144,11 @@ impl Mul for UnitTree {
     type Output = UnitTree;
 
     fn mul(self, rhs: Self) -> Self::Output {
+        if rhs.is_none() {
+            return self;
+        } else if self.is_none() {
+            return rhs;
+        }
         UnitTree::Product(vec![self, rhs], None)
     }
 }
@@ -121,15 +157,20 @@ impl Div for UnitTree {
     type Output = UnitTree;
 
     fn div(self, rhs: Self) -> Self::Output {
+        if rhs.is_none() {
+            return self;
+        }
         UnitTree::Quotient(Box::new(self), Box::new(rhs), None)
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum UVError {
     Mismatch { left: UnitTree, right: UnitTree },
     DivisionByZero
 }
 
+#[derive(Debug, Clone)]
 pub struct UV {
     pub unit: UnitTree,
     pub value: Complex
@@ -143,7 +184,7 @@ impl Add for UV {
             let l_mul = self.unit.metricify().1;
             let r_mul = rhs.unit.metricify().1;
 
-            Ok(UV { unit: self.unit, value: self.value + rhs.value * r_mul / l_mul })  // TEST ME
+            Ok(UV { unit: self.unit, value: self.value + rhs.value * r_mul / l_mul })
         } else {
             Err(UVError::Mismatch { left: self.unit, right: rhs.unit })
         }
@@ -170,12 +211,9 @@ impl Mul for UV {
     type Output = UV;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        // TEST ME
-        let initial = self.unit.metricify().1;
         let new_units = self.unit * rhs.unit;
-        let factor = new_units.metricify().1 / initial;
 
-        UV { unit: new_units, value: self.value * factor }
+        UV { unit: new_units, value: self.value * rhs.value }
     }
 }
 
@@ -186,13 +224,12 @@ impl Div for UV {
         if rhs.value.eq0() {
             return Err(UVError::DivisionByZero)
         }
-        Ok(UV { unit: self.unit / rhs.unit, value: self.value / rhs.value })  // TEST ME
+        Ok(UV { unit: self.unit / rhs.unit, value: self.value / rhs.value })
     }
 }
 
 impl UV {
     pub fn convert(self, dst: UnitTree) -> Result<UV, UVError> {
-        // TEST ME
         if !self.unit.compatible(&dst) { return Err(UVError::Mismatch { left: self.unit, right: dst }); }
         let metricified = self.value * self.unit.metricify().1;
         let converted = metricified / dst.metricify().1;

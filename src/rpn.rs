@@ -2,13 +2,13 @@ use std::{collections::HashMap, fs::File, io::Read, fmt::{Display, Formatter, De
 
 use regex::Regex;
 use rug::{Float, Complex, float::Constant::Pi, ops::Pow};
-use crate::{units::{UnitValue, UnitHolder, UnitMathError}, parser::{Command, Infix}};
+use crate::{units::{UnitHolder, UnitMathError}, parser::{Command, Infix}, newerunits::{UV, UnitTree, UVError}};
 
 pub struct RPN {
     pub prec: u32,
     pub units: UnitHolder,
-    pub stack: Vec<UnitValue>,
-    pub vars: HashMap<String, UnitValue>
+    pub stack: Vec<UV>,
+    pub vars: HashMap<String, UV>
 }
 
 impl RPN {
@@ -18,13 +18,13 @@ impl RPN {
         let units = UnitHolder::new(buf);
 
         let mut vars = HashMap::new();
-        vars.insert("pi".to_string(), UnitValue { value: Complex::with_val(prec, Pi), unit: crate::units::Unit::Derived { top: vec![], bottom: vec![], multiplier: Float::with_val(prec, 1) } });
-        vars.insert("e".to_string(), UnitValue { value: Complex::with_val(prec, 1).exp(), unit: crate::units::Unit::Derived { top: vec![], bottom: vec![], multiplier: Float::with_val(prec, 1) } });
+        vars.insert("pi".to_string(), UV { value: Complex::with_val(prec, Pi), unit: UnitTree::dimensionless() });
+        vars.insert("e".to_string(), UV { value: Complex::with_val(prec, 1).exp(), unit: UnitTree::dimensionless() });
 
         RPN { prec, units, stack: vec![], vars }
     }
 
-    fn pop(&mut self, n: usize) -> Result<Vec<UnitValue>, EvalError> {
+    fn pop(&mut self, n: usize) -> Result<Vec<UV>, EvalError> {
         if n > self.stack.len() {
             return Err(EvalError::EmptyStack);
         }
@@ -50,7 +50,7 @@ impl RPN {
                     crate::parser::Op::Minus => a - b,
                     crate::parser::Op::Times => Ok(a * b),
                     crate::parser::Op::Divide => a / b,
-                    crate::parser::Op::Pow => { let u = a.unit.clone(); let v = a.value.pow(b.value); Ok(UnitValue { unit: u, value: v }) }
+                    crate::parser::Op::Pow => { let u = a.unit.clone(); let v = a.value.pow(b.value); Ok(UV { unit: u, value: v }) }
                 }.map_err(|x| EvalError::UnitError(x))?;
 
                 self.stack.push(out);
@@ -74,48 +74,48 @@ impl RPN {
         }
     }
 
-    fn print_u_value(u: &UnitValue) -> String {
-        match &u.unit {
-            crate::units::Unit::Base(v) => format!("{} {}", PComplex(&u.value), v),
-            crate::units::Unit::Derived { top, bottom, multiplier } => {
-                let mut counts = vec![];
+    // fn print_u_value(u: &UV) -> String {
+    //     match &u.unit {
+    //         crate::units::Unit::Base(v) => format!("{} {}", PComplex(&u.value), v),
+    //         crate::units::Unit::Derived { top, bottom, multiplier } => {
+    //             let mut counts = vec![];
 
-                for item in top {
-                    let mut idx = None;
-                    for (i, (unit, _)) in counts.iter().enumerate() {
-                        if unit == &item {
-                            idx = Some(i);
-                            break;
-                        }
-                    }
-                    let i = match idx {
-                        Some(v) => v,
-                        None => { counts.push((item, 0)); counts.len() - 1 }
-                    };
+    //             for item in top {
+    //                 let mut idx = None;
+    //                 for (i, (unit, _)) in counts.iter().enumerate() {
+    //                     if unit == &item {
+    //                         idx = Some(i);
+    //                         break;
+    //                     }
+    //                 }
+    //                 let i = match idx {
+    //                     Some(v) => v,
+    //                     None => { counts.push((item, 0)); counts.len() - 1 }
+    //                 };
 
-                    counts[i].1 += 1;
-                }
+    //                 counts[i].1 += 1;
+    //             }
 
-                for item in bottom {
-                    let mut idx = None;
-                    for (i, (unit, _)) in counts.iter().enumerate() {
-                        if unit == &item {
-                            idx = Some(i);
-                            break;
-                        }
-                    }
-                    let i = match idx {
-                        Some(v) => v,
-                        None => { counts.push((item, 0)); counts.len() - 1 }
-                    };
+    //             for item in bottom {
+    //                 let mut idx = None;
+    //                 for (i, (unit, _)) in counts.iter().enumerate() {
+    //                     if unit == &item {
+    //                         idx = Some(i);
+    //                         break;
+    //                     }
+    //                 }
+    //                 let i = match idx {
+    //                     Some(v) => v,
+    //                     None => { counts.push((item, 0)); counts.len() - 1 }
+    //                 };
 
-                    counts[i].1 -= 1;
-                }
+    //                 counts[i].1 -= 1;
+    //             }
 
-                todo!()
-            }
-        }
-    }
+    //             todo!()
+    //         }
+    //     }
+    // }
 
     pub fn print_stack(&self) -> String {
         let mut out = String::new();
@@ -125,17 +125,18 @@ impl RPN {
             let unit = &item.unit;
 
             out.push_str(PComplex(value).to_string().as_str());
-            let u = format!("{}", unit);
+            let u = format!("{:?}", unit);
             if u.len() != 0 {
                 out.push(' ');
                 out.push_str(u.as_str());
             }
+            out.push('\n');
         }
 
         out
     }
 
-    pub fn infix_eval(&mut self, expr: Infix) -> Result<UnitValue, EvalError> {
+    pub fn infix_eval(&mut self, expr: Infix) -> Result<UV, EvalError> {
         match expr {
             Infix::BiOp(lv, op, rv) => {
                 let l = self.infix_eval(*lv)?;
@@ -152,7 +153,7 @@ impl RPN {
             Infix::MonoOp(op, value) => {
                 let v = self.infix_eval(*value)?;
                 match *op {
-                    crate::parser::MonoOp::Minus => Ok(UnitValue { value: -v.value, unit: v.unit })
+                    crate::parser::MonoOp::Minus => Ok(UV { value: -v.value, unit: v.unit })
                 }
             }
             Infix::FunctionInv(func, args) => todo!(),
@@ -170,14 +171,14 @@ impl Debug for RPN {
 #[derive(Debug)]
 pub enum EvalError {
     EmptyStack,
-    UnitError(UnitMathError)
+    UnitError(UVError)
 }
 
 impl Display for EvalError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EvalError::EmptyStack => write!(f, "empty stack"),
-            EvalError::UnitError(e) => write!(f, "{}", e),
+            EvalError::UnitError(e) => write!(f, "{:?}", e),
         }
     }
 }

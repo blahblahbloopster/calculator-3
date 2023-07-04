@@ -2,7 +2,7 @@ use std::{ops::{Range, Deref}, fmt::Debug};
 
 use rug::{Float, Complex};
 
-use crate::units::{UnitHolder, Unit, UnitValue};
+use crate::{units::{UnitHolder, Unit, UnitValue}, newerunits::{UnitTree, UV}};
 
 peg::parser! {
     pub grammar rpn_parser(prec: u32, units: &UnitHolder) for str {
@@ -26,7 +26,7 @@ peg::parser! {
         rule number() -> Tag<Complex>
             = l:position!() v:num() r:position!() { Tag::new(v, l..r) }
             
-        rule unit() -> Tag<Unit>
+        rule unit() -> Tag<UnitTree>
             = l:position!() "`" v:$([^ '`']+) "`" r:position!() {? Tag::new(units.parse(v), l..r).ok_ora("failed to parse unit") }  // TODO make this more helpful
         
         rule u_number() -> Tag<PUnitValue>
@@ -136,15 +136,15 @@ impl<T> Tag<Option<T>> {
 
 #[derive(Debug, Clone)]
 pub enum PUnitValue {
-    UnV { unit: Tag<Unit>, value: Tag<Complex> },
+    UnV { unit: Tag<UnitTree>, value: Tag<Complex> },
     Dimensionless { value: Tag<Complex> }
 }
 
 impl PUnitValue {
-    pub fn as_uv(self) -> UnitValue {
+    pub fn as_uv(self) -> UV {
         match self {
-            PUnitValue::UnV { unit, value } => UnitValue { value: value.item, unit: unit.item },
-            PUnitValue::Dimensionless { value } => UnitValue { value: value.item, unit: Unit::Derived { top: vec![], bottom: vec![], multiplier: Float::with_val(1024, 1) } }
+            PUnitValue::UnV { unit, value } => UV { value: value.item, unit: unit.item },
+            PUnitValue::Dimensionless { value } => UV { value: value.item, unit: UnitTree::Product(vec![], None) }
         }
     }
 }
@@ -156,8 +156,8 @@ pub enum Command {
     VarAssign(Tag<String>),
     VarAccess(Tag<String>),
     Infix(Tag<Infix>),
-    Convert(Tag<Unit>),
-    UnitSet(Tag<Unit>)
+    Convert(Tag<UnitTree>),
+    UnitSet(Tag<UnitTree>)
 }
 
 #[derive(Debug, Clone, Copy)]
