@@ -2,10 +2,10 @@ use std::{ops::{Range, Deref}, fmt::Debug};
 
 use rug::{Float, Complex};
 
-use crate::{units::{UnitHolder, Unit, UnitValue}, newerunits::{UnitTree, UV}};
+use crate::{newerunits::{UnitTree, UV}, rpn::{RPN, Function}};
 
 peg::parser! {
-    pub grammar rpn_parser(prec: u32, units: &UnitHolder) for str {
+    pub grammar rpn_parser(calc: &RPN) for str {
         rule _ = [' ' | '\n']*
 
         rule digits() -> &'input str
@@ -15,19 +15,19 @@ peg::parser! {
             = $(digits() ("." digits())?)
         
         rule float() -> Float
-            = v:$(decimal() ("e" float())?) {? Ok(Float::with_val(prec, Float::parse(v).or(Err("number format error"))?)) }
+            = v:$(decimal() ("e" float())?) {? Ok(Float::with_val(calc.prec, Float::parse(v).or(Err("number format error"))?)) }
         
         rule num() -> Complex
-            = "(" real:float() ("," / "+")? imaginary:float() "i"? ")" {? Ok(Complex::with_val(prec, (real, imaginary))) } /
-              real:float() "+" imaginary:float() "i" {? Ok(Complex::with_val(prec, (real, imaginary))) } /
-              imaginary:float() "i" {? Ok(Complex::with_val(prec, (Float::new(prec), imaginary))) } /
-              real:float() { Complex::with_val(prec, real) }
+            = "(" real:float() ("," / "+")? imaginary:float() "i"? ")" {? Ok(Complex::with_val(calc.prec, (real, imaginary))) } /
+              real:float() "+" imaginary:float() "i" {? Ok(Complex::with_val(calc.prec, (real, imaginary))) } /
+              imaginary:float() "i" {? Ok(Complex::with_val(calc.prec, (Float::new(calc.prec), imaginary))) } /
+              real:float() { Complex::with_val(calc.prec, real) }
 
         rule number() -> Tag<Complex>
             = l:position!() v:num() r:position!() { Tag::new(v, l..r) }
             
         rule unit() -> Tag<UnitTree>
-            = l:position!() "`" v:$([^ '`']+) "`" r:position!() {? Tag::new(units.parse(v), l..r).ok_ora("failed to parse unit") }  // TODO make this more helpful
+            = l:position!() "`" v:$([^ '`']+) "`" r:position!() {? Tag::new(calc.units.parse(v), l..r).ok_ora("failed to parse unit") }  // TODO make this more helpful
         
         rule u_number() -> Tag<PUnitValue>
             = l:position!() value:number() u:unit()? r:position!() { Tag::new(match u {
@@ -49,7 +49,7 @@ peg::parser! {
             = "-" { MonoOp::Minus }
         
         rule ident() -> Tag<&'input str>
-            = l:position!() v:$(['A'..='Z' | 'a'..='z']+ ['A'..='Z' | 'a'..='z' | '0'..='9' | '_']) r:position!() { Tag::new(v, l..r) }
+            = l:position!() v:$(['A'..='Z' | 'a'..='z'] ['A'..='Z' | 'a'..='z' | '0'..='9' | '_']*) r:position!() { Tag::new(v, l..r) }
         
         rule infix() -> Infix = precedence! {
             x:(@) _ tl:position!() "+" tr:position!() _ y:@ { Infix::BiOp(Box::new(x), Tag::new(Op::Plus, tl..tr), Box::new(y)) }
@@ -69,8 +69,8 @@ peg::parser! {
             v:u_number() { Infix::Num(v) }
         }
 
-        rule comment()
-            = "\"" [^'"']* "\""
+        rule comment_command() -> Tag<Command>
+            = l:position!() "\"" [^'"']* "\"" r:position!() { Tag::new(Command::Comment, l..r) }
 
         rule infix_command() -> Tag<Command>
             = l:position!() "'" vl:position!() v:infix() vr:position!() "'" r:position!() { Tag::new(Command::Infix(Tag::new(v, vl..vr)), l..r) }
@@ -79,19 +79,19 @@ peg::parser! {
         rule operation() -> Tag<Command>
             = l:position!() v:op() r:position!() { Tag::new(Command::Operation(v), l..r) }
         rule var_assign() -> Tag<Command>
-            = l:position!() "=" vl:position!() v:ident() r:position!() { Tag::new(Command::VarAssign(Tag::new(v.to_string(), vl..r)), l..r) }
-        rule var_access() -> Tag<Command>
-            = l:position!() v:ident() r:position!() { Tag::new(Command::VarAccess(v.map(|x| x.to_string())), l..r) }
+            = l:position!() "=" vl:position!() v:ident() r:position!() { Tag::new(Command::Function(Function::VarSet(v.to_string())), l..r) }
+        rule function() -> Tag<Command>
+            = l:position!() v:ident() r:position!() {? Ok(Tag::new(Command::Function(Function::from_string(v.to_string()).ok_or("function not found")?), l..r)) }
         rule convert() -> Tag<Command>
             = l:position!() "to" _ v:unit() r:position!() { Tag::new(Command::Convert(v), l..r) }
         rule cast() -> Tag<Command>
             = l:position!() v:unit() r:position!() { Tag::new(Command::UnitSet(v), l..r) }
         
         rule command() -> Tag<Command>
-            = infix_command() / number_command() / operation() / var_assign() / var_access() / convert() / cast()
+            = convert() / infix_command() / number_command() / operation() / var_assign() / function() / cast() / comment_command()
         
         pub rule commands() -> Vec<Tag<Command>>
-            = command() ** (_ / comment())
+            = v:command() ** _ _ { v }
     }
 }
 
@@ -153,11 +153,11 @@ impl PUnitValue {
 pub enum Command {
     Number(Tag<PUnitValue>),
     Operation(Tag<Op>),
-    VarAssign(Tag<String>),
-    VarAccess(Tag<String>),
     Infix(Tag<Infix>),
     Convert(Tag<UnitTree>),
-    UnitSet(Tag<UnitTree>)
+    UnitSet(Tag<UnitTree>),
+    Function(Function),
+    Comment
 }
 
 #[derive(Debug, Clone, Copy)]

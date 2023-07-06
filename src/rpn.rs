@@ -2,26 +2,67 @@ use std::{collections::HashMap, fs::File, io::Read, fmt::{Display, Formatter, De
 
 use regex::Regex;
 use rug::{Float, Complex, float::Constant::Pi, ops::Pow};
-use crate::{units::{UnitHolder, UnitMathError}, parser::{Command, Infix}, newerunits::{UV, UnitTree, UVError}};
+use crate::{parser::{Command, Infix}, newerunits::{UV, UnitTree, UVError, UnitHolder}};
 
 pub struct RPN {
     pub prec: u32,
     pub units: UnitHolder,
     pub stack: Vec<UV>,
+    pub vars: HashMap<String, UV>,
+    pub undo_checkpoints: Vec<UndoCheckpoint>
+}
+
+pub struct UndoCheckpoint {
+    pub stack: Vec<UV>,
     pub vars: HashMap<String, UV>
 }
 
-impl RPN {
-    pub fn new(prec: u32) -> Self {
-        let mut buf = String::new();
-        File::open("src/units.txt").unwrap().read_to_string(&mut buf).unwrap();
-        let units = UnitHolder::new(buf);
+impl UndoCheckpoint {
+    // pain
+    fn size(&self) -> usize {
+        self.stack.iter().map(|x| (x.value.prec().0 / 8 + x.value.prec().1 / 8) as usize).sum::<usize>() + self.vars.values().map(|x| (x.value.prec().0 / 8 + x.value.prec().1 / 8) as usize).sum::<usize>()
+    }
+}
 
+impl RPN {
+    pub fn new(prec: u32, units: UnitHolder) -> Self {
         let mut vars = HashMap::new();
         vars.insert("pi".to_string(), UV { value: Complex::with_val(prec, Pi), unit: UnitTree::dimensionless() });
         vars.insert("e".to_string(), UV { value: Complex::with_val(prec, 1).exp(), unit: UnitTree::dimensionless() });
 
-        RPN { prec, units, stack: vec![], vars }
+        RPN { prec, units, stack: vec![], vars, undo_checkpoints: vec![] }
+    }
+
+    fn undo_size(&self) -> usize {
+        self.undo_checkpoints.iter().map(|x| x.size()).sum()
+    }
+
+    fn limit_undo_size(&mut self) {
+        let threshold = 134217728;
+        while self.undo_size() > threshold && !self.undo_checkpoints.is_empty() {
+            self.undo_checkpoints.remove(0);
+        }
+    }
+
+    pub fn undo_checkpoint(&mut self) {
+        let c = UndoCheckpoint {
+            stack: self.stack.clone(),
+            vars: self.vars.clone(),
+        };
+        self.undo_checkpoints.push(c);
+        self.limit_undo_size();
+    }
+
+    pub fn restore(&mut self, c: UndoCheckpoint) {
+        self.stack = c.stack;
+        self.vars = c.vars;
+    }
+
+    pub fn restore_last(&mut self) -> bool {
+        match self.undo_checkpoints.pop() {
+            Some(v) => { self.restore(v); true },
+            None => false
+        }
     }
 
     fn pop(&mut self, n: usize) -> Result<Vec<UV>, EvalError> {
@@ -34,6 +75,13 @@ impl RPN {
         }
         out.reverse();
         Ok(out)
+    }
+
+    fn pop_single(&mut self) -> Result<UV, EvalError> {
+        if self.stack.is_empty() {
+            return Err(EvalError::EmptyStack);
+        }
+        Ok(self.stack.pop().unwrap())
     }
 
     pub fn run(&mut self, command: Command) -> Result<(), EvalError> {
@@ -50,15 +98,16 @@ impl RPN {
                     crate::parser::Op::Minus => a - b,
                     crate::parser::Op::Times => Ok(a * b),
                     crate::parser::Op::Divide => a / b,
-                    crate::parser::Op::Pow => { let u = a.unit.clone(); let v = a.value.pow(b.value); Ok(UV { unit: u, value: v }) }
+                    crate::parser::Op::Pow => { let u = a.unit.clone(); let v = a.value.pow(b.value); Ok(UV { unit: u, value: v }) }  // TODO: exponeate units
                 }.map_err(|x| EvalError::UnitError(x))?;
 
                 self.stack.push(out);
 
                 Ok(())
             }
-            Command::VarAssign(_) => todo!(),
-            Command::VarAccess(_) => todo!(),
+            Command::Function(v) => {
+                v.eval(self)
+            }
             Command::Infix(e) => {
                 let out = self.infix_eval(e.item)?;
                 self.stack.push(out);
@@ -70,7 +119,12 @@ impl RPN {
                 self.stack.push(converted);
                 Ok(())
             }
-            Command::UnitSet(_) => todo!(),
+            Command::UnitSet(v) => {
+                let popped = self.pop_single()?;
+                self.stack.push(UV { unit: v.item, value: popped.value });
+                Ok(())
+            }
+            Command::Comment => Ok(())
         }
     }
 
@@ -125,13 +179,15 @@ impl RPN {
             let unit = &item.unit;
 
             out.push_str(PComplex(value).to_string().as_str());
-            let u = format!("{:?}", unit);
+            let u = format!("{}", unit);
             if u.len() != 0 {
                 out.push(' ');
                 out.push_str(u.as_str());
             }
             out.push('\n');
         }
+        
+        out.pop();
 
         out
     }
@@ -146,7 +202,7 @@ impl RPN {
                     crate::parser::Op::Minus => (l - r).map_err(|x| EvalError::UnitError(x)),
                     crate::parser::Op::Times => Ok(l * r),
                     crate::parser::Op::Divide => (l / r).map_err(|x| EvalError::UnitError(x)),
-                    crate::parser::Op::Pow => todo!(),
+                    crate::parser::Op::Pow => { let u = l.unit.clone(); let v = l.value.pow(r.value); Ok(UV { unit: u, value: v }) }  // TODO: exponeate units
                 }
             }
             Infix::Num(n) => Ok(n.item.as_uv()),
@@ -171,14 +227,119 @@ impl Debug for RPN {
 #[derive(Debug)]
 pub enum EvalError {
     EmptyStack,
-    UnitError(UVError)
+    UnitError(UVError),
+    VarNotFound(String),
+    UnimplementedError
 }
 
 impl Display for EvalError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EvalError::EmptyStack => write!(f, "empty stack"),
-            EvalError::UnitError(e) => write!(f, "{:?}", e),
+            EvalError::UnitError(e) => write!(f, "{}", e),
+            EvalError::VarNotFound(n) => write!(f, "variable '{}' not found", n),
+            EvalError::UnimplementedError => write!(f, "not yet implemented")
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Function {
+    Sin, Cos, Tan, Cot,
+    ASin, ACos, ATan, ATan2, ACot,
+    Sqrt,
+    Ln, Log10, Log2, LogB,
+    Drop(usize), Duplicate, Swap, Clear, Clipboard, PrettyPrint, Undo,
+    VarGet(String), VarSet(String)
+}
+
+impl Display for Function {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Function {
+    fn eval(self, calc: &mut RPN) -> Result<(), EvalError> {
+        match self {
+            Function::Drop(n) => { let _ = calc.pop(n); Ok(()) },
+            Function::Duplicate => { let v = calc.pop_single()?; calc.stack.push(v.clone()); calc.stack.push(v); Ok(()) },
+            Function::Swap => { let mut items = calc.pop(2)?; items.reverse(); calc.stack.extend(items); Ok(()) },  // TEST ME
+            Function::Clear => { calc.stack.clear(); Ok(()) }
+            Function::Clipboard => Err(EvalError::UnimplementedError),
+            Function::PrettyPrint => Err(EvalError::UnimplementedError),
+            Function::VarGet(name) => {
+                match calc.vars.get(&name) {
+                    Some(v) => { calc.stack.push(v.clone()); Ok(()) }
+                    None => Err(EvalError::VarNotFound(name))
+                }
+            }
+            Function::VarSet(name) => {
+                let arg = calc.pop_single()?;
+                calc.vars.insert(name, arg);
+                Ok(())
+            }
+            Function::LogB => { let b = calc.pop_single()?; let a = calc.pop_single()?; let res = a.value.ln() / b.value.ln(); calc.stack.push(UV { unit: a.unit, value: res }); Ok(()) }
+            Function::ATan2 => Err(EvalError::UnimplementedError),
+            _ => {
+                let arg = calc.pop_single()?;
+                let res = match self {
+                    Function::Sin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.sin() }),  // TODO: circle units
+                    Function::Cos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.cos() }),
+                    Function::Tan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.tan() }),
+                    Function::Cot => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.tan().recip() }),
+                    Function::ASin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.asin() }),
+                    Function::ACos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.acos() }),
+                    Function::ATan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.atan() }),
+                    Function::ACot => Err(EvalError::UnimplementedError),
+                    Function::Sqrt => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.sqrt() }),  // TODO: unsquare
+                    Function::Ln => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() }),
+                    Function::Log10 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.log10() }),
+                    Function::Log2 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() / Complex::with_val(calc.prec, 2).ln() }),
+                    _ => panic!()  // illegal state, these are handled by the previous block
+                }?;
+
+                calc.stack.push(res);
+
+                Ok(())
+            }
+        }
+    }
+
+    pub fn from_string(inp: String) -> Option<Function> {
+        match inp.as_str() {
+            "sin" => Some(Function::Sin),
+            "cos" => Some(Function::Cos),
+            "tan" => Some(Function::Tan),
+            "cot" => Some(Function::Cot),
+
+            "asin" => Some(Function::ASin),
+            "acos" => Some(Function::ACos),
+            "atan" => Some(Function::ATan),
+            "atan2" => Some(Function::ATan2),
+            "acot" => Some(Function::ACot),
+
+            "sqrt" => Some(Function::Sqrt),
+
+            "ln" => Some(Function::Ln),
+            "log10" => Some(Function::Log10),
+            "log2" => Some(Function::Log2),
+            "logb" => Some(Function::LogB),
+
+            "d" => Some(Function::Duplicate),
+            "s" => Some(Function::Swap),
+            "clear" => Some(Function::Clear),
+            "clipboard" => Some(Function::Clipboard),
+            "pretty" => Some(Function::PrettyPrint),
+            _ => {
+                if inp.starts_with("=") {
+                    Some(Function::VarSet(inp.strip_prefix("=").unwrap().to_string()))
+                } else if inp.chars().all(|x| x == 'r') {
+                    Some(Function::Drop(inp.len()))
+                } else {
+                    Some(Function::VarGet(inp))
+                }
+            }
         }
     }
 }

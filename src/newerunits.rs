@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Debug}, collections::HashMap, ops::{Mul, Div, Add, Neg, Sub}};
 
-use rug::{Float, Complex};
+use rug::{Float, Complex, ops::Pow};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct UnitName {
@@ -22,7 +22,7 @@ impl Debug for UnitName {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct BaseUnit(pub UnitName);
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum UnitTree {
     Base(BaseUnit),
     Product(Vec<UnitTree>, Option<UnitName>),
@@ -30,18 +30,46 @@ pub enum UnitTree {
     Scale(Box<UnitTree>, Float, UnitName)
 }
 
-impl Debug for UnitTree {
+impl Display for UnitTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_none() {
+            return write!(f, "");
+        }
         match self {
             UnitTree::Base(name) => write!(f, "{}", name.0),
-            UnitTree::Product(items, _) => {
-                write!(f, "(")?;
-                for item in items {
-                    write!(f, "{:?} ", item)?
+            UnitTree::Product(items, name) => {
+                // TODO: add powers
+                match name {
+                    Some(v) => {
+                        return write!(f, "{}", v);
+                    }
+                    None => {}
                 }
-                write!(f, ")")
+                if items.len() > 1 { write!(f, "(")?; }
+                for (idx, item) in items.iter().enumerate() {
+                    write!(f, "{}", item)?;
+                    if idx != items.len() - 1 {
+                        write!(f, "*")?;
+                    }
+                }
+                if items.len() > 1 { write!(f, ")") } else { write!(f, "") }  // cursed
             }
-            UnitTree::Quotient(a, b, _) => write!(f, "{:?}/{:?}", a, b),
+            UnitTree::Quotient(av, b, name) => {
+                match name {
+                    Some(v) => {
+                        return write!(f, "{}", v);
+                    }
+                    None => {}
+                }
+
+                let mut a = av.to_string();
+
+                if a.is_empty() {
+                    a = "1".to_string();
+                }
+                
+                write!(f, "{}/{}", a, b)
+            }
             UnitTree::Scale(_, _, name) => write!(f, "{}", name),
         }
     }
@@ -50,6 +78,10 @@ impl Debug for UnitTree {
 impl UnitTree {
     pub fn dimensionless() -> UnitTree {
         UnitTree::Product(vec![], None)
+    }
+
+    fn scl_name(self, factor: Float, name: UnitName) -> UnitTree {
+        UnitTree::Scale(Box::new(self), factor, name)
     }
 
     pub fn metricify(&self) -> (HashMap<BaseUnit, i32>, Float) {
@@ -170,6 +202,34 @@ pub enum UVError {
     DivisionByZero
 }
 
+pub trait ReplaceIfEmpty {
+    fn if_empty(self, other: Self) -> Self;
+}
+
+impl ReplaceIfEmpty for String {
+    fn if_empty(self, other: Self) -> Self {
+        if self.is_empty() {
+            other
+        } else {
+            self
+        }
+    }
+}
+
+impl Display for UVError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UVError::Mismatch { left, right } => {
+                let l = left.to_string().if_empty("unitless".to_string());
+                let r = right.to_string().if_empty("unitless".to_string());
+
+                write!(f, "expected {}, found {}", l, r)
+            }
+            UVError::DivisionByZero => write!(f, "division by zero"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct UV {
     pub unit: UnitTree,
@@ -234,5 +294,159 @@ impl UV {
         let metricified = self.value * self.unit.metricify().1;
         let converted = metricified / dst.metricify().1;
         Ok(UV { unit: dst, value: converted })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct UnitHolder {
+    units: Vec<ParsedUnit>
+}
+
+impl UnitHolder {
+    pub fn single_from_string(&self, inp: &str) -> Option<UnitTree> {
+        for item in &self.units {
+            for subitem in &item.names {
+                if subitem == inp {
+                    return Some(item.unit.clone())
+                }
+            }
+        }
+        None
+    }
+
+    pub fn new(inp: String) -> UnitHolder {
+        let mut out = UnitHolder { units: vec![] };
+        inp.lines().filter(|x| !(x.starts_with('#') || x.is_empty())).for_each(|x| { let unit = unit_file_parser::row(x, &mut out).or(Err(format!("error parsing '{}'", x))).unwrap(); out.units.extend(unit); });
+        out
+    }
+
+    pub fn parse(&self, inp: &str) -> Option<UnitTree> {
+        unit_parser::unit(inp, self).ok()?  // this is fine
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ParsedUnit {
+    names: Vec<String>,
+    unit: UnitTree
+}
+
+peg::parser! {
+    grammar unit_file_parser() for str {
+        rule _ = [' ' | '\n']*
+
+        rule num() -> i32
+            = _ v:$("-"? ['0'..='9']+) _ {? v.parse().or(Err("number parse error")) }
+            
+        rule unit(holder: &mut UnitHolder) -> UnitTree = precedence! {
+            x:(@) "*" y:@ { x * y }
+            x:(@) "/" y:@ { x / y }
+            --
+            u:(@) "^" n:num() {
+                let mut out = vec![];
+                for _ in 0..n {
+                    out.push(u.clone())
+                }
+                if n < 0 {
+                    UnitTree::Quotient(Box::new(UnitTree::Product(vec![], None)), Box::new(UnitTree::Product(out, None)), None)
+                } else {
+                    UnitTree::Product(out, None)
+                }
+        }
+            _ u:$(['a'..='z' | 'A'..='Z' | 'μ']+) _ { holder.single_from_string(u).expect(format!("failed to parse '{}'", u).as_str()) }
+        }
+
+        rule name() -> &'input str
+            = _ v:$(['a'..='z' | 'A'..='Z' | 'μ']+) _ { v }
+        
+        rule digits() -> &'input str
+            = $(['0'..='9']+)
+
+        rule decimal() -> &'input str
+            = $(digits() ("." digits())?)
+        
+        rule float() -> Float
+            = _ v:$(decimal() ("e" float())?) _ {? Ok(Float::with_val(1024, Float::parse(v).or(Err("number format error"))?)) }
+
+        rule r(holder: &mut UnitHolder) -> ParsedUnit
+            = n:name() ++ "/" ":" v:float() u:unit(holder) { ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Scale(Box::new(u), v, UnitName { main: n[0].to_string(), others: n.iter().skip(1).map(|x| x.to_string()).collect() }) } } /
+              n:name() ++ "/" { let name = n[0].to_string(); ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Base(BaseUnit(UnitName { main: n[0].to_string(), others: n.iter().skip(1).map(|x| x.to_string()).collect() })) } }
+        
+        pub rule row(holder: &mut UnitHolder) -> Vec<ParsedUnit>
+            = original:r(holder) "(prefixes)" { original.prefixes() } /
+              original:r(holder) { vec![original] }
+    }
+}
+
+impl ParsedUnit {
+    fn prefixes(self) -> Vec<ParsedUnit> {
+        let prefixes = vec![
+            ("quetta", 	"Q", 	30),
+            ("ronna", 	"R", 	27),
+            ("yotta", 	"Y", 	24),
+            ("zetta", 	"Z", 	21),
+            ("exa", 	"E", 	18),
+            ("peta", 	"P", 	15),
+            ("tera", 	"T", 	12),
+            ("giga", 	"G", 	9),
+            ("mega", 	"M", 	6),
+            ("kilo", 	"k", 	3),
+            ("hecto", 	"h", 	2),
+            ("deca", 	"da", 	1),
+            ("deci", 	"d", 	-1),
+            ("centi", 	"c", 	-2),
+            ("milli", 	"m", 	-3),
+            ("micro", 	"μ", 	-6),
+            ("micro", 	"u", 	-6),
+            ("nano", 	"n", 	-9),
+            ("pico", 	"p", 	-12),
+            ("femto", 	"f", 	-15),
+            ("atto", 	"a", 	-18),
+            ("zepto", 	"z", 	-21),
+            ("yocto", 	"y", 	-24),
+            ("ronto", 	"r", 	-27),
+            ("quecto", 	"q", 	-30),
+        ];
+
+        let mut out = vec![self.clone()];
+        for (full, abbrev, power) in prefixes {
+            let factor = Float::with_val(1024, 10).pow(power);
+
+            let mut names = self.names.iter().filter(|x| x.len() > 3).map(|x| format!("{}{}", full, x)).collect::<Vec<_>>();
+            names.extend(self.names.iter().filter(|x| x.len() <= 3).map(|x| format!("{}{}", abbrev, x)));
+
+            let mut others = names.clone();
+            let main = others.remove(0);
+            out.push(ParsedUnit { names, unit: self.unit.clone().scl_name(factor, UnitName { main, others }) });
+        }
+
+        out
+    }
+}
+
+peg::parser! {
+    pub grammar unit_parser(holder: &UnitHolder) for str {
+        rule _ = [' ' | '\n']*
+
+        rule num() -> i32
+            = _ v:$("-"? ['0'..='9']+) _ {? v.parse().or(Err("number parse error")) }
+                
+        pub rule unit() -> Option<UnitTree> = precedence! {
+            x:(@) _ "*" _ y:@ { Some(x? * y?) }
+            x:(@) _ "/" _ y:@ { Some(x? / y?) }
+            --
+            u:(@) _ "^" _ n:num() {
+                let mut out = vec![];
+                for _ in 0..n {
+                    out.push(u.clone()?)
+                }
+                if n < 0 {
+                    Some(UnitTree::Quotient(Box::new(UnitTree::Product(vec![], None)), Box::new(UnitTree::Product(out, None)), None))
+                } else {
+                    Some(UnitTree::Product(out, None))
+                }
+            }
+            _ u:$(['a'..='z' | 'A'..='Z']+) _ { holder.single_from_string(u) }
+        }
     }
 }

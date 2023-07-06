@@ -1,25 +1,21 @@
-use std::{fs::File, io::{Read, stdout, Write}, collections::HashMap, ops::Range};
+use std::{fs::File, io::Read, collections::HashMap, ops::{Range, Deref}, thread, sync::{Mutex, Arc}, cell::UnsafeCell};
 
+use newerunits::UnitHolder;
 use parser::{Command, Infix, Tag};
-// use newunits::blah;
 use rpn::RPN;
-use rug::{Float, Complex};
-use rustyline::{hint::Hinter, highlight::Highlighter, error::ReadlineError};
-use rustyline_derive::{Completer, Helper, Validator, Highlighter, Hinter};
-use units::{Unit, unit_parser, UnitHolder};
+use rustyline::{highlight::Highlighter, error::ReadlineError, config::Configurer, ConditionalEventHandler, Event, Cmd, EventHandler, KeyEvent};
+use rustyline_derive::{Completer, Helper, Validator, Hinter};
+use signal_hook::iterator::Signals;
 
-use crate::{units::UnitValue, parser::rpn_parser};
+use crate::parser::rpn_parser;
 
 mod parser;
-mod units;
 mod rpn;
-mod newunits;
 mod newerunits;
 
 #[derive(Validator, Helper, Completer, Hinter)]
-struct Session<'a> {
-    calculator: RPN,
-    units: &'a UnitHolder
+struct Session {
+    calculator: RPN
 }
 
 struct ModifiableString {
@@ -79,12 +75,7 @@ impl Color {
     }
 
     fn pnt<T>(color: Color, range: &Tag<T>, out: &mut ModifiableString) {
-        let col = color.col();
-        let before = col.prefix().to_string();
-        let after = col.suffix().to_string();
-
-        out.before(range.loc.start, before);
-        out.after(range.loc.end, after);
+        Color::paint(color, range.loc.clone(), out)
     }
 
     fn infix_color(expr: &Infix, out: &mut ModifiableString) {
@@ -123,16 +114,31 @@ impl Color {
 
     fn color(c: &Tag<Command>, out: &mut ModifiableString) {
         let color = match &c.item {
-            Command::Number(v) => Color::Number,
+            Command::Number(_) => Color::Number,
             Command::Operation(_) => Color::Operator,
-            Command::VarAssign(_) => Color::Variable,
-            Command::VarAccess(_) => Color::Variable,
+            // Command::VarAssign(_) => Color::Variable,
+            // Command::VarAccess(_) => Color::Variable,
             Command::Infix(expr) => {
                 Color::infix_color(expr, out);
                 return;
             }
             Command::Convert(_) => Color::Operator,
             Command::UnitSet(_) => Color::Operator,
+            Command::Function(v) => {
+                match v {
+                    // stack functions
+                    rpn::Function::Drop(_) => Color::Operator,
+                    rpn::Function::Duplicate => Color::Operator,
+                    rpn::Function::Swap => Color::Operator,
+                    rpn::Function::Clear => Color::Operator,
+                    rpn::Function::Clipboard => Color::Operator,
+                    rpn::Function::PrettyPrint => Color::Operator,
+                    rpn::Function::VarGet(_) => Color::Variable,
+                    rpn::Function::VarSet(_) => Color::Variable,
+                    _ => Color::Operator  // math functions
+                }
+            }
+            Command::Comment => Color::Comment
         };
         Color::pnt(color, c, out);
     }
@@ -149,22 +155,37 @@ impl Color {
         match self {
             Color::Number => ansi_term::Color::Blue,
             Color::Unit => ansi_term::Color::Blue,
-            Color::Operator => ansi_term::Color::Green,
+            Color::Operator => ansi_term::Color::Yellow,
             Color::Variable => ansi_term::Color::Green,
             Color::Comment => ansi_term::Color::Purple,
         }
     }
 }
 
-impl<'a> Highlighter for Session<'a> {
+impl Highlighter for Session {
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> std::borrow::Cow<'l, str> {
         let _ = pos;
-        let parsed = rpn_parser::commands(line, self.calculator.prec, self.units);
+        let parsed = rpn_parser::commands(line, &self.calculator);
         let l = match parsed {
             Ok(v) => {
                 Color::highlight(&v, line)
             }
-            Err(v) => line.to_string(),  // FIXME
+            Err(_) => {
+                let mut out = line.clone().to_string();
+                let mut popped = String::new();
+                loop {
+                    match out.pop() {
+                        Some(v) => { popped.push(v) }
+                        None => return std::borrow::Cow::Owned(line.to_string())
+                    }
+                    let h = self.highlight(out.as_str(), pos).to_string();
+                    if h == out {
+                        continue;
+                    }
+                    let style = ansi_term::Color::Red.reverse();
+                    return std::borrow::Cow::Owned(h + &style.prefix().to_string() + &popped + &style.suffix().to_string());
+                }
+            }
         };
         std::borrow::Cow::Owned(l)
     }
@@ -175,28 +196,54 @@ impl<'a> Highlighter for Session<'a> {
     }
 }
 
+struct Handler {
+    undo: Arc<Mutex<UnsafeCell<bool>>>
+}
+impl ConditionalEventHandler for Handler {
+    fn handle(
+            &self,
+            evt: &rustyline::Event,
+            n: rustyline::RepeatCount,
+            positive: bool,
+            ctx: &rustyline::EventContext,
+        ) -> Option<rustyline::Cmd> {
+            // println!("\n\n\n\n\naiowjafioeiojfjioe\n\n\n\n\n");
+            // Some(Cmd::Undo(1))
+            // let v = self.undo.lock().unwrap();
+            *self.undo.lock().unwrap().get_mut() = true;
+            Some(Cmd::Interrupt)
+    }
+}
+
 fn main() {
-    // blah()
     let mut buf = String::new();
     File::open("src/units.txt").unwrap().read_to_string(&mut buf).unwrap();
     let holder = UnitHolder::new(buf);
 
-    // let unit1 = unit_parser::unit("km", &holder).unwrap();
-    // let unit2 = unit_parser::unit("inch", &holder).unwrap();
-
-    // let inp = UnitValue { value: Complex::with_val(1024, 10000), unit: unit1 };
-    // println!("{:?}", inp.convert(unit2));
-
-
-    let rpn = RPN::new(1024);
-    let session = Session { calculator: rpn, units: &holder };
+    let rpn = RPN::new(1024, holder);
+    let session = Session { calculator: rpn };
     let mut editor = rustyline::Editor::new().unwrap();
     editor.set_helper(Some(session));
 
+    let undo = Arc::new(Mutex::new(UnsafeCell::new(false)));
+    editor.bind_sequence(
+        KeyEvent::ctrl('z'),
+        EventHandler::Conditional(Box::new(Handler { undo: Arc::clone(&undo) })),
+    );
+
     loop {
-        let line = match editor.readline("> ") {
+        println!("{}", editor.helper().unwrap().calculator.print_stack());
+        let res = editor.readline("> ");
+        // println!("\n\n\n\n{:?}\n\n\n\n", res);
+        let line = match res {
             Ok(l) => l,
             Err(ReadlineError::Interrupted) => {
+                if unsafe { *undo.lock().unwrap().get() } {
+                    if !editor.helper_mut().unwrap().calculator.restore_last() {
+                        print!("undo buffer empty");
+                    }
+                    *undo.lock().unwrap().get_mut() = false
+                }
                 continue;
             },
             Err(ReadlineError::Eof) => {
@@ -206,10 +253,14 @@ fn main() {
                 continue;
             }
         };
+        editor.add_history_entry(line.clone());
 
-        let parsed = rpn_parser::commands(&line, 1024, &holder);
+        let parsed = rpn_parser::commands(&line, &editor.helper().unwrap().calculator);
         match parsed {
             Ok(v) => {
+                if !v.is_empty() {
+                    editor.helper_mut().unwrap().calculator.undo_checkpoint();
+                }
                 for cmd in v {
                     let res = editor.helper_mut().unwrap().calculator.run(cmd.item);
                     match res {
@@ -217,7 +268,8 @@ fn main() {
                         Err(e) => {
                             println!("  {}^", " ".repeat(cmd.loc.start));
                             println!("{}", e);
-                            break;  // TODO: restore state
+                            editor.helper_mut().unwrap().calculator.restore_last();
+                            break;
                         }
                     }
                 }
@@ -230,6 +282,5 @@ fn main() {
                 continue;
             }
         }
-        println!("{}", editor.helper().unwrap().calculator.print_stack());
     }
 }

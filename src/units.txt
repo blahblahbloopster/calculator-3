@@ -1,24 +1,14 @@
 # base units
-second / s / sec
+second / s / sec (prefixes)
 kilogram / kg
-mole / mol
-candela / cd
-kelvin / K
-ampere / amp / A
-meter / m
+mole / mol (prefixes)
+candela / cd (prefixes)
+kelvin / K (prefixes)
+ampere / amp / A (prefixes)
+meter / m (prefixes)
 
 # derived (metric)
-hertz / Hz: 1 s^-1
-kilohertz / kHz: 1000 Hz
-megahertz / MHz: 1000 kHz
-gigahertz / GHz: 1000 MHz
-
-picometer / pm: 0.000000000001 m
-nanometer / nm: 0.000000001 m
-micrometer / um / μm: 0.000001 m
-millimeter / mm: 0.001 m
-centimeter / cm: 0.01 m
-kilometer / km: 1000 m
+hertz / Hz: 1 s^-1 (prefixes)
 
 minute / min: 60 s
 hour / h: 60 min
@@ -27,25 +17,33 @@ nanogram / ng: 0.000000000001 kg
 microgram / ug / μg: 0.000000001 kg
 milligram / mg: 0.000001 kg
 gram / g: 0.001 kg
-ton / ton: 1000 kg
+ton / t: 1000 kg
 
-litre / liter: 1000 cm^3
+litre / liter: 1000 cm^3 (prefixes)
+molar / M: 1 mole/liter (prefixes)
+newton / N: 1 kg*m/s^2 (prefixes)
+pascal / Pa: 1 N/m^2 (prefixes)
+joule / J: 1 N*m (prefixes)
+watt / W: 1 J/s (prefixes)
+coulomb / C: 1 A/s (prefixes)
+volt / V: 1 J/C (prefixes)
+weber / Wb: 1 V*s (prefixes)
+tesla / T: 1 Wb/m^2 (prefixes)
+farad / F: 1 C/V (prefixes)
+ohm: 1 V/A (prefixes)
+siemens / S: 1 A/V (prefixes)
+henry / H: 1 V*s/A (prefixes)
+becquerel / Bq: 1 Hz (prefixes)
+gray / Gy: 1 J/kg (prefixes)
+sievert / Sv: 1 J/kg (prefixes)
+katal / kat: 1 mol/s (prefixes)
+micron: 1 um
+bar: 100 kPa
+rad: 0.1 mGy (prefixes)
+rem: 0.01 Sv
+watthour / Wh: 1 W*h (prefixes)
+calorie / scical / cal: 4.184 J (prefixes)
 
-micromole / umol / μmol: 0.000001 mol
-
-molar / M: 1 mole/liter
-
-newton / N: 1 kg*m/s^2
-micronewton / uN / μN: 0.000001 N
-millnewton / mN: 0.001 N
-kilonewton / kN: 1000 N
-meganewton / MN: 1000000 N
-giganewton / GN: 1000000000 N
-
-millisecond / ms: 0.001 s
-microsecond / us / μs: 0.001 ms
-nanosecond / ns: 0.001 us
-picosecond / ps: 0.001 ns
 
 # derived (imperial)
 inch / in: 2.54 cm
@@ -57,8 +55,8 @@ furlong / furlongs: 660 ft
 parsec / parsecs: 30856775814913673 m
 lightyear / ly: 9460730472580800 m
 smoot / smoots: 1.702 m
-barn / barns: 0.0000000000000000000000000001 m^2
-outhouse: 0.000001 barn
-shed: 0.000000000000000000000001 barn
+barn / barns: 0.0000000000000000000000000001 m^2 (prefixes)
+outhouse: 0.000001 barn (prefixes)
+shed: 0.000000000000000000000001 barn (prefixes)
 nanoacre: 4.0468564224 mm^2
-shake: 10 ns
+shake: 10 ns (prefixes)
