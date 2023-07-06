@@ -1,17 +1,16 @@
-use std::{fs::File, io::Read, collections::HashMap, ops::{Range, Deref}, thread, sync::{Mutex, Arc}, cell::UnsafeCell};
+use std::{fs::File, io::Read, collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell};
 
-use newerunits::UnitHolder;
+use units::UnitHolder;
 use parser::{Command, Infix, Tag};
 use rpn::RPN;
-use rustyline::{highlight::Highlighter, error::ReadlineError, config::Configurer, ConditionalEventHandler, Event, Cmd, EventHandler, KeyEvent};
+use rustyline::{highlight::Highlighter, error::ReadlineError, ConditionalEventHandler, Cmd, EventHandler, KeyEvent};
 use rustyline_derive::{Completer, Helper, Validator, Hinter};
-use signal_hook::iterator::Signals;
 
 use crate::parser::rpn_parser;
 
 mod parser;
 mod rpn;
-mod newerunits;
+mod units;
 
 #[derive(Validator, Helper, Completer, Hinter)]
 struct Session {
@@ -202,10 +201,10 @@ struct Handler {
 impl ConditionalEventHandler for Handler {
     fn handle(
             &self,
-            evt: &rustyline::Event,
-            n: rustyline::RepeatCount,
-            positive: bool,
-            ctx: &rustyline::EventContext,
+            _evt: &rustyline::Event,
+            _n: rustyline::RepeatCount,
+            _positive: bool,
+            _ctx: &rustyline::EventContext,
         ) -> Option<rustyline::Cmd> {
             // println!("\n\n\n\n\naiowjafioeiojfjioe\n\n\n\n\n");
             // Some(Cmd::Undo(1))
@@ -217,7 +216,7 @@ impl ConditionalEventHandler for Handler {
 
 fn main() {
     let mut buf = String::new();
-    File::open("src/units.txt").unwrap().read_to_string(&mut buf).unwrap();
+    File::open("units.txt").unwrap().read_to_string(&mut buf).unwrap();
     let holder = UnitHolder::new(buf);
 
     let rpn = RPN::new(1024, holder);

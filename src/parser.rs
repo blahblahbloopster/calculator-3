@@ -2,7 +2,7 @@ use std::{ops::{Range, Deref}, fmt::Debug};
 
 use rug::{Float, Complex};
 
-use crate::{newerunits::{UnitTree, UV}, rpn::{RPN, Function}};
+use crate::{units::{UnitTree, UV}, rpn::{RPN, Function}};
 
 peg::parser! {
     pub grammar rpn_parser(calc: &RPN) for str {
@@ -62,8 +62,8 @@ peg::parser! {
             --
             x:(@) _ tl:position!() "^" tr:position!() _ y:@ { Infix::BiOp(Box::new(x), Tag::new(Op::Pow, tl..tr), Box::new(y)) }
             --
+            name:ident() "(" params:infix() ** ("," _) ")" { Infix::FunctionInv(name.map(|x| x.to_string()), params) }
             name:ident() { Infix::VarAccess(name.map(|x| x.to_string())) }
-            name:ident() "(" params:infix() ** "," ")" { Infix::FunctionInv(name.map(|x| x.to_string()), params) }
             "(" v:infix() ")" { v }
             --
             v:u_number() { Infix::Num(v) }

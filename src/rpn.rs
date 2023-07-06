@@ -1,8 +1,8 @@
-use std::{collections::HashMap, fs::File, io::Read, fmt::{Display, Formatter, Debug}};
+use std::{collections::HashMap, fmt::{Display, Formatter, Debug}};
 
 use regex::Regex;
 use rug::{Float, Complex, float::Constant::Pi, ops::Pow};
-use crate::{parser::{Command, Infix}, newerunits::{UV, UnitTree, UVError, UnitHolder}};
+use crate::{parser::{Command, Infix}, units::{UV, UnitTree, UVError, UnitHolder}};
 
 pub struct RPN {
     pub prec: u32,
@@ -212,8 +212,31 @@ impl RPN {
                     crate::parser::MonoOp::Minus => Ok(UV { value: -v.value, unit: v.unit })
                 }
             }
-            Infix::FunctionInv(func, args) => todo!(),
-            Infix::VarAccess(name) => todo!(),
+            Infix::FunctionInv(func, args) => {
+                let found = Function::from_string(func.item.clone()).ok_or(EvalError::FunctionNotFound(func.item))?;
+                let exp = match found.num_args() {
+                    Some(v) => v,
+                    None => return Err(EvalError::IllegalFunction(found))
+                };
+                
+                if exp != args.len() {
+                    return Err(EvalError::WrongArgs { expected: exp, found: args.len() });
+                }
+
+                let mut a = vec![];
+
+                for item in args {
+                    a.push(self.infix_eval(item)?)
+                }
+                
+                found.eval_normal(a, self)
+            }
+            Infix::VarAccess(name) => {
+                match self.vars.get(&name.item) {
+                    Some(v) => Ok(v.clone()),
+                    None => Err(EvalError::VarNotFound(name.item.clone())),
+                }
+            }
         }
     }
 }
@@ -229,6 +252,9 @@ pub enum EvalError {
     EmptyStack,
     UnitError(UVError),
     VarNotFound(String),
+    FunctionNotFound(String),
+    WrongArgs { expected: usize, found: usize },
+    IllegalFunction(Function),
     UnimplementedError
 }
 
@@ -238,6 +264,9 @@ impl Display for EvalError {
             EvalError::EmptyStack => write!(f, "empty stack"),
             EvalError::UnitError(e) => write!(f, "{}", e),
             EvalError::VarNotFound(n) => write!(f, "variable '{}' not found", n),
+            EvalError::FunctionNotFound(n) => write!(f, "function '{}' not found", n),
+            EvalError::WrongArgs { expected, found } => write!(f, "expected {} args, found {}", expected, found),
+            EvalError::IllegalFunction(func) => write!(f, "function {:?} can't be used in this context", func),
             EvalError::UnimplementedError => write!(f, "not yet implemented")
         }
     }
@@ -260,6 +289,65 @@ impl Display for Function {
 }
 
 impl Function {
+    fn num_args(&self) -> Option<usize> {
+        match self {
+            Function::Sin => Some(1),
+            Function::Cos => Some(1),
+            Function::Tan => Some(1),
+            Function::Cot => Some(1),
+            Function::ASin => Some(1),
+            Function::ACos => Some(1),
+            Function::ATan => Some(1),
+            Function::ATan2 => Some(1),
+            Function::ACot => Some(1),
+            Function::Sqrt => Some(1),
+            Function::Ln => Some(1),
+            Function::Log10 => Some(1),
+            Function::Log2 => Some(1),
+            Function::LogB => Some(2),
+
+            Function::Drop(_) => None,
+            Function::Duplicate => None,
+            Function::Swap => None,
+            Function::Clear => None,
+            Function::Clipboard => None,
+            Function::PrettyPrint => None,
+            Function::Undo => None,
+            Function::VarGet(_) => None,
+            Function::VarSet(_) => None,
+        }
+    }
+
+    fn eval_normal(self, args: Vec<UV>, calc: &RPN) -> Result<UV, EvalError> {
+        match self.num_args() {
+            Some(v) => {
+                if v != args.len() {
+                    return Err(EvalError::WrongArgs { expected: v, found: args.len() });
+                }
+            }
+            None => panic!("stupid.")
+        }
+        let arg = args[0].clone();
+        match self {
+            Function::Sin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.sin() }),  // TODO: circle units
+            Function::Cos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.cos() }),
+            Function::Tan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.tan() }),
+            Function::Cot => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.tan().recip() }),
+            Function::ASin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.asin() }),
+            Function::ACos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.acos() }),
+            Function::ATan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.atan() }),
+            Function::ACot => Err(EvalError::UnimplementedError),
+            Function::Sqrt => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.sqrt() }),  // TODO: unsquare
+            Function::Ln => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() }),
+            Function::Log10 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.log10() }),
+            Function::Log2 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() / Complex::with_val(calc.prec, 2).ln() }),
+            Function::LogB => { let a = arg; let b = args[1].clone(); let res = a.value.ln() / b.value.ln(); Ok(UV { unit: a.unit, value: res }) }
+            Function::ATan2 => Err(EvalError::UnimplementedError),
+
+            _ => Err(EvalError::IllegalFunction(self))  // this is so fucking stupid holy shit
+        }
+    }
+
     fn eval(self, calc: &mut RPN) -> Result<(), EvalError> {
         match self {
             Function::Drop(n) => { let _ = calc.pop(n); Ok(()) },
@@ -267,7 +355,100 @@ impl Function {
             Function::Swap => { let mut items = calc.pop(2)?; items.reverse(); calc.stack.extend(items); Ok(()) },  // TEST ME
             Function::Clear => { calc.stack.clear(); Ok(()) }
             Function::Clipboard => Err(EvalError::UnimplementedError),
-            Function::PrettyPrint => Err(EvalError::UnimplementedError),
+            Function::PrettyPrint => {
+                let mut mapping = Vec::new();
+                macro_rules! ins {
+                    ($($n:literal $s:ident)+) => {
+                        $(mapping.push(($n, stringify!($s).to_string().to_lowercase())));+
+                    };
+                }
+
+                ins!(
+                    2    Hundred
+                    3    Thousand
+                    6    Million
+                    9    Billion
+                    12   Trillion
+                    15   Quadrillion
+                    18   Quintillion
+                    21   Sextillion
+                    24   Septillion 
+                    24   Septillion 
+                    30   Nonillion
+                    33   Decillion 
+                    36   Undecillion 
+                    39   Duodecillion 
+                    42   Tredecillion 
+                    45   Quattuordecillion 
+                    48   Quindecillion 
+                    51   Sedecillion 
+                    54   Septendecillion
+                    57   Octodecillion 
+                    60   Novendecillion 
+                    63   Vigintillion 
+                    66   Unvigintillion 
+                    69   Duovigintillion 
+                    72   Tresvigintillion 
+                    75   Quattuorvigintillion 
+                    78   Quinvigintillion 
+                    81   Sesvigintillion 
+                    84   Septemvigintillion 
+                    87   Octovigintillion 
+                    90   Novemvigintillion 
+                    93   Trigintillion 
+                    96   Untrigintillion 
+                    99   Duotrigintillion 
+                    102  Trestrigintillion 
+                    105  Quattuortrigintillion 
+                    108  Quintrigintillion 
+                    111  Sestrigintillion 
+                    114  Septentrigintillion 
+                    117  Octotrigintillion 
+                    120  Noventrigintillion 
+                    123  Quadragintillion 
+                    153  Quinquagintillion 
+                    183  Sexagintillion 
+                    213  Septuagintillion 
+                    243  Octogintillion 
+                    273  Nonagintillion 
+                    303  Centillion 
+                    306  Uncentillion 
+                    333  Decicentillion 
+                    336  Undecicentillion 
+                    363  Viginticentillion 
+                    366  Unviginticentillion 
+                    393  Trigintacentillion 
+                    423  Quadragintacentillion 
+                    453  Quinquagintacentillion 
+                    483  Sexagintacentillion 
+                    513  Septuagintacentillion 
+                    543  Octogintacentillion 
+                    573  Nonagintacentillion 
+                    603  Ducentillion 
+                    903  Trecentillion 
+                    1203 Quadringentillion 
+                    1503 Quingentillion 
+                    1803 Sescentillion 
+                    2103 Septingentillion 
+                    2403 Octingentillion 
+                    2703 Nongentillion 
+                    3003 Millinillion
+                );
+
+                let item = calc.stack.last().ok_or(EvalError::EmptyStack)?;
+
+                let mut out = String::new();
+                out.push_str(PComplex(&item.value).pretty_print(&mapping).as_str());
+                let u = format!("{}", item.unit);
+                if u.len() != 0 {
+                    out.push(' ');
+                    out.push_str(u.as_str());
+                }
+
+                println!("{}\n", out);
+
+                Ok(())
+            }
             Function::VarGet(name) => {
                 match calc.vars.get(&name) {
                     Some(v) => { calc.stack.push(v.clone()); Ok(()) }
@@ -279,28 +460,9 @@ impl Function {
                 calc.vars.insert(name, arg);
                 Ok(())
             }
-            Function::LogB => { let b = calc.pop_single()?; let a = calc.pop_single()?; let res = a.value.ln() / b.value.ln(); calc.stack.push(UV { unit: a.unit, value: res }); Ok(()) }
-            Function::ATan2 => Err(EvalError::UnimplementedError),
             _ => {
-                let arg = calc.pop_single()?;
-                let res = match self {
-                    Function::Sin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.sin() }),  // TODO: circle units
-                    Function::Cos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.cos() }),
-                    Function::Tan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.tan() }),
-                    Function::Cot => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.tan().recip() }),
-                    Function::ASin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.asin() }),
-                    Function::ACos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.acos() }),
-                    Function::ATan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.atan() }),
-                    Function::ACot => Err(EvalError::UnimplementedError),
-                    Function::Sqrt => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.sqrt() }),  // TODO: unsquare
-                    Function::Ln => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() }),
-                    Function::Log10 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.log10() }),
-                    Function::Log2 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() / Complex::with_val(calc.prec, 2).ln() }),
-                    _ => panic!()  // illegal state, these are handled by the previous block
-                }?;
-
-                calc.stack.push(res);
-
+                let args = calc.pop(self.num_args().expect("you brought this on yourself"))?;
+                calc.stack.push(self.eval_normal(args, calc)?);
                 Ok(())
             }
         }

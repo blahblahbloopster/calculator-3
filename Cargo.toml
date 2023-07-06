@@ -13,4 +13,3 @@ rustyline = { version = "10.0.0", features = ["custom-bindings"] }
 rustyline-derive = "0.7.0"
 rand = "0.8.5"
 ansi_term = "0.12.1"
-signal-hook = "0.3.15"
