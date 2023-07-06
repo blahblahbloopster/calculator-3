@@ -278,7 +278,7 @@ pub enum Function {
     ASin, ACos, ATan, ATan2, ACot,
     Sqrt,
     Ln, Log10, Log2, LogB,
-    Drop(usize), Duplicate, Swap, Clear, Clipboard, PrettyPrint, Undo,
+    Drop(usize), Duplicate, Swap, Clear, Clipboard, PrettyPrint,
     VarGet(String), VarSet(String)
 }
 
@@ -312,7 +312,6 @@ impl Function {
             Function::Clear => None,
             Function::Clipboard => None,
             Function::PrettyPrint => None,
-            Function::Undo => None,
             Function::VarGet(_) => None,
             Function::VarSet(_) => None,
         }
