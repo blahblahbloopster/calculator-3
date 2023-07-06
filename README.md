@@ -2,7 +2,8 @@
 _a command-line RPN calculator_
 
 ## Usage
-This calculator is RPN, meaning operators are placed after, not between, operands.  For instance, 2\*3 would be written as `2 3*`, and (1+2)/(3\*4) would be `1 2+ 3 4*/`
+This calculator is RPN, meaning operators are placed after, not between, operands.  For instance, 2\*3 would be written as `2 3*`, and (1+2)/(3\*4) would be `1 2+ 3 4*/`<br>
+Ctrl+d can be used to exit
 
 ### Syntax
 | Syntax | Behavior | Example |
