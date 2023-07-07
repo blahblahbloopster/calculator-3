@@ -84,9 +84,18 @@ impl UnitTree {
         UnitTree::Scale(Box::new(self), factor, name)
     }
 
+    fn precision(&self) -> Option<u32> {
+        match self {
+            UnitTree::Base(_) => None,
+            UnitTree::Product(items, _) => items.iter().find_map(|x| x.precision()),
+            UnitTree::Quotient(top, bottom, _) => Some(top.precision().unwrap_or(bottom.precision()?)),
+            UnitTree::Scale(_, k, _) => Some(k.prec()),
+        }
+    }
+
     pub fn metricify(&self) -> (HashMap<BaseUnit, i32>, Float) {
         let mut out = HashMap::new();
-        let mut mul = Float::with_val(1024, 1);
+        let mut mul = Float::with_val(self.precision().unwrap_or(1024), 1);
         match self {
             UnitTree::Base(k) => { out.insert(k.clone(), 1); }
             UnitTree::Product(items, _) => {
@@ -168,7 +177,43 @@ impl UnitTree {
     }
 
     pub fn is_none(&self) -> bool {
-        self.is_dimensionless() && (self.metricify().1 - Float::with_val(1024, 1)).to_f64().abs() < 0.00001
+        self.is_dimensionless() && (self.metricify().1 - Float::with_val(self.precision().unwrap_or(1024), 1)).to_f64().abs() < 0.00001
+    }
+
+    pub fn exp(&self, e: &Complex) -> Option<UnitTree> {
+        let as_frac = e.real().clone().recip();
+        let is_frac = as_frac.is_integer();  // TODO: epsilon
+        let is_suitable = e.imag().is_zero() || (e.real().is_integer() || is_frac);
+        if !is_suitable { return None; }
+
+        if is_frac {
+            match self {
+                UnitTree::Base(_) => return None,
+                UnitTree::Product(items, _) => {
+                    let first = items.get(0)?;
+                    return if items.len() == as_frac.to_i32_saturating()? as usize && items.iter().all(|x| x == first) {
+                        Some(first.clone())
+                    } else {
+                        None
+                    }
+                }
+                UnitTree::Quotient(_, _, _) => return None,
+                UnitTree::Scale(_, _, _) => return None,
+            }
+        }
+
+        let exp = e.real().to_i32_saturating()?;
+
+        let mut prod = vec![];
+        for _ in 0..exp.abs() {
+            prod.push(self.clone())
+        }
+        let group = UnitTree::Product(prod, None);
+        if exp < 0 {
+            Some(UnitTree::Quotient(Box::new(UnitTree::dimensionless()), Box::new(group), None))
+        } else {
+            Some(group)
+        }
     }
 }
 
@@ -295,11 +340,24 @@ impl UV {
         let converted = metricified / dst.metricify().1;
         Ok(UV { unit: dst, value: converted })
     }
+
+    pub fn exp(self, power: Complex) -> UV {
+        UV { unit: self.unit.exp(&power).unwrap_or(UnitTree::dimensionless()), value: self.value.pow(power) }
+    }
+
+    pub fn as_rad(self, holder: &UnitHolder) -> Result<Complex, UVError> {
+        if self.unit.is_none() {
+            return Ok(self.value)
+        }
+        let radians = unit_parser::unit("rad", holder).unwrap().unwrap();
+        self.convert(radians).map(|x| x.value)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct UnitHolder {
-    units: Vec<ParsedUnit>
+    units: Vec<ParsedUnit>,
+    prec: u32
 }
 
 impl UnitHolder {
@@ -314,8 +372,8 @@ impl UnitHolder {
         None
     }
 
-    pub fn new(inp: String) -> UnitHolder {
-        let mut out = UnitHolder { units: vec![] };
+    pub fn new(inp: String, prec: u32) -> UnitHolder {
+        let mut out = UnitHolder { units: vec![], prec };
         inp.lines().filter(|x| !(x.starts_with('#') || x.is_empty())).for_each(|x| { let unit = unit_file_parser::row(x, &mut out).or(Err(format!("error parsing '{}'", x))).unwrap(); out.units.extend(unit); });
         out
     }
@@ -365,11 +423,25 @@ peg::parser! {
         rule decimal() -> &'input str
             = $(digits() ("." digits())?)
         
-        rule float() -> Float
-            = _ v:$(decimal() ("e" float())?) _ {? Ok(Float::with_val(1024, Float::parse(v).or(Err("number format error"))?)) }
+        rule float(holder: &UnitHolder) -> Float
+            = _ v:$(decimal() ("e" float(holder))?) _ {? Ok(Float::with_val(holder.prec, Float::parse(v).or(Err("number format error"))?)) }
+            / _ "pi" _ { Float::with_val(holder.prec, rug::float::Constant::Pi) }
+        
+        rule coefficient(holder: &UnitHolder) -> Float = precedence! {
+            x:(@) "+" y:@ { x + y }
+            x:(@) "-" y:@ { x - y }
+            --
+            x:(@) "*" y:@ { x * y }
+            x:(@) "/" y:@ { x / y }
+            --
+            // I don't know why, but this breaks it
+            // "(" v:coefficient() ")" { v }
+            // --
+            v:float(holder) { v }
+        }
 
         rule r(holder: &mut UnitHolder) -> ParsedUnit
-            = n:name() ++ "/" ":" v:float() u:unit(holder) { ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Scale(Box::new(u), v, UnitName { main: n[0].to_string(), others: n.iter().skip(1).map(|x| x.to_string()).collect() }) } } /
+            = n:name() ++ "/" ":" v:coefficient(holder) u:unit(holder) { ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Scale(Box::new(u), v, UnitName { main: n[0].to_string(), others: n.iter().skip(1).map(|x| x.to_string()).collect() }) } } /
               n:name() ++ "/" { let name = n[0].to_string(); ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Base(BaseUnit(UnitName { main: n[0].to_string(), others: n.iter().skip(1).map(|x| x.to_string()).collect() })) } }
         
         pub rule row(holder: &mut UnitHolder) -> Vec<ParsedUnit>
@@ -430,7 +502,6 @@ peg::parser! {
 
         rule num() -> i32
             = _ v:$("-"? ['0'..='9']+) _ {? v.parse().or(Err("number parse error")) }
-                
         pub rule unit() -> Option<UnitTree> = precedence! {
             x:(@) _ "*" _ y:@ { Some(x? * y?) }
             x:(@) _ "/" _ y:@ { Some(x? / y?) }
@@ -446,6 +517,9 @@ peg::parser! {
                     Some(UnitTree::Product(out, None))
                 }
             }
+            --
+            "(" u:unit() ")" { u }
+            --
             _ u:$(['a'..='z' | 'A'..='Z']+) _ { holder.single_from_string(u) }
         }
     }

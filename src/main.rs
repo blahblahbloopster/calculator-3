@@ -1,7 +1,7 @@
 use std::{fs::File, io::Read, collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell};
 
 use units::UnitHolder;
-use parser::{Command, Infix, Tag};
+use parser::{Command, Infix, Tag, DiceInfix};
 use rpn::RPN;
 use rustyline::{highlight::Highlighter, error::ReadlineError, ConditionalEventHandler, Cmd, EventHandler, KeyEvent};
 use rustyline_derive::{Completer, Helper, Validator, Hinter};
@@ -111,6 +111,15 @@ impl Color {
         }
     }
 
+    fn dice_color(expr: &DiceInfix, out: &mut ModifiableString) {
+        match expr {
+            DiceInfix::Roll(num) => Color::pnt(Color::Number, num, out),
+            DiceInfix::Multi(k, inner) => { Color::pnt(Color::Operator, k, out); Color::dice_color(inner, out) }
+            DiceInfix::Multiply(k, inner) => { Color::pnt(Color::Number, k, out); Color::dice_color(inner, out) }
+            DiceInfix::Advantage(_n, k) => { Color::dice_color(k, out) }
+        }
+    }
+
     fn color(c: &Tag<Command>, out: &mut ModifiableString) {
         let color = match &c.item {
             Command::Number(_) => Color::Number,
@@ -137,7 +146,11 @@ impl Color {
                     _ => Color::Operator  // math functions
                 }
             }
-            Command::Comment => Color::Comment
+            Command::Comment => Color::Comment,
+            Command::Dice(expr) => {
+                Color::dice_color(expr, out);
+                return;
+            }
         };
         Color::pnt(color, c, out);
     }
@@ -215,11 +228,12 @@ impl ConditionalEventHandler for Handler {
 }
 
 fn main() {
+    let prec = 1024;
     let mut buf = String::new();
     File::open("units.txt").unwrap().read_to_string(&mut buf).unwrap();
-    let holder = UnitHolder::new(buf);
+    let holder = UnitHolder::new(buf, prec);
 
-    let rpn = RPN::new(1024, holder);
+    let rpn = RPN::new(prec, holder);
     let session = Session { calculator: rpn };
     let mut editor = rustyline::Editor::new().unwrap();
     editor.set_helper(Some(session));
@@ -233,7 +247,6 @@ fn main() {
     loop {
         println!("{}", editor.helper().unwrap().calculator.print_stack());
         let res = editor.readline("> ");
-        // println!("\n\n\n\n{:?}\n\n\n\n", res);
         let line = match res {
             Ok(l) => l,
             Err(ReadlineError::Interrupted) => {

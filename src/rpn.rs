@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::{Display, Formatter, Debug}};
 
+use rand::{rngs::StdRng, SeedableRng};
 use regex::Regex;
 use rug::{Float, Complex, float::Constant::Pi, ops::Pow};
 use crate::{parser::{Command, Infix}, units::{UV, UnitTree, UVError, UnitHolder}};
@@ -9,7 +10,8 @@ pub struct RPN {
     pub units: UnitHolder,
     pub stack: Vec<UV>,
     pub vars: HashMap<String, UV>,
-    pub undo_checkpoints: Vec<UndoCheckpoint>
+    pub undo_checkpoints: Vec<UndoCheckpoint>,
+    rng: StdRng
 }
 
 pub struct UndoCheckpoint {
@@ -30,7 +32,7 @@ impl RPN {
         vars.insert("pi".to_string(), UV { value: Complex::with_val(prec, Pi), unit: UnitTree::dimensionless() });
         vars.insert("e".to_string(), UV { value: Complex::with_val(prec, 1).exp(), unit: UnitTree::dimensionless() });
 
-        RPN { prec, units, stack: vec![], vars, undo_checkpoints: vec![] }
+        RPN { prec, units, stack: vec![], vars, undo_checkpoints: vec![], rng: StdRng::from_entropy() }
     }
 
     fn undo_size(&self) -> usize {
@@ -98,7 +100,7 @@ impl RPN {
                     crate::parser::Op::Minus => a - b,
                     crate::parser::Op::Times => Ok(a * b),
                     crate::parser::Op::Divide => a / b,
-                    crate::parser::Op::Pow => { let u = a.unit.clone(); let v = a.value.pow(b.value); Ok(UV { unit: u, value: v }) }  // TODO: exponeate units
+                    crate::parser::Op::Pow => Ok(a.exp(b.value)),
                 }.map_err(|x| EvalError::UnitError(x))?;
 
                 self.stack.push(out);
@@ -124,52 +126,13 @@ impl RPN {
                 self.stack.push(UV { unit: v.item, value: popped.value });
                 Ok(())
             }
+            Command::Dice(tree) => {
+                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, tree.roll(&mut self.rng)) });
+                Ok(())
+            }
             Command::Comment => Ok(())
         }
     }
-
-    // fn print_u_value(u: &UV) -> String {
-    //     match &u.unit {
-    //         crate::units::Unit::Base(v) => format!("{} {}", PComplex(&u.value), v),
-    //         crate::units::Unit::Derived { top, bottom, multiplier } => {
-    //             let mut counts = vec![];
-
-    //             for item in top {
-    //                 let mut idx = None;
-    //                 for (i, (unit, _)) in counts.iter().enumerate() {
-    //                     if unit == &item {
-    //                         idx = Some(i);
-    //                         break;
-    //                     }
-    //                 }
-    //                 let i = match idx {
-    //                     Some(v) => v,
-    //                     None => { counts.push((item, 0)); counts.len() - 1 }
-    //                 };
-
-    //                 counts[i].1 += 1;
-    //             }
-
-    //             for item in bottom {
-    //                 let mut idx = None;
-    //                 for (i, (unit, _)) in counts.iter().enumerate() {
-    //                     if unit == &item {
-    //                         idx = Some(i);
-    //                         break;
-    //                     }
-    //                 }
-    //                 let i = match idx {
-    //                     Some(v) => v,
-    //                     None => { counts.push((item, 0)); counts.len() - 1 }
-    //                 };
-
-    //                 counts[i].1 -= 1;
-    //             }
-
-    //             todo!()
-    //         }
-    //     }
-    // }
 
     pub fn print_stack(&self) -> String {
         let mut out = String::new();
@@ -202,7 +165,7 @@ impl RPN {
                     crate::parser::Op::Minus => (l - r).map_err(|x| EvalError::UnitError(x)),
                     crate::parser::Op::Times => Ok(l * r),
                     crate::parser::Op::Divide => (l / r).map_err(|x| EvalError::UnitError(x)),
-                    crate::parser::Op::Pow => { let u = l.unit.clone(); let v = l.value.pow(r.value); Ok(UV { unit: u, value: v }) }  // TODO: exponeate units
+                    crate::parser::Op::Pow => Ok(l.exp(r.value)),
                 }
             }
             Infix::Num(n) => Ok(n.item.as_uv()),
@@ -272,6 +235,12 @@ impl Display for EvalError {
     }
 }
 
+impl From<UVError> for EvalError {
+    fn from(value: UVError) -> Self {
+        EvalError::UnitError(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Function {
     Sin, Cos, Tan, Cot,
@@ -328,15 +297,15 @@ impl Function {
         }
         let arg = args[0].clone();
         match self {
-            Function::Sin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.sin() }),  // TODO: circle units
-            Function::Cos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.cos() }),
-            Function::Tan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.tan() }),
-            Function::Cot => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.tan().recip() }),
-            Function::ASin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.asin() }),
-            Function::ACos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.acos() }),
-            Function::ATan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.atan() }),
+            Function::Sin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.as_rad(&calc.units)?.sin() }),
+            Function::Cos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.as_rad(&calc.units)?.cos() }),
+            Function::Tan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.as_rad(&calc.units)?.tan() }),
+            Function::Cot => Ok(UV { unit: UnitTree::dimensionless(), value: arg.as_rad(&calc.units)?.tan().recip() }),
+            Function::ASin => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.asin() }),
+            Function::ACos => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.acos() }),
+            Function::ATan => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.atan() }),
             Function::ACot => Err(EvalError::UnimplementedError),
-            Function::Sqrt => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.sqrt() }),  // TODO: unsquare
+            Function::Sqrt => Ok(arg.exp(Complex::with_val(calc.prec, 0.5))),
             Function::Ln => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() }),
             Function::Log10 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.log10() }),
             Function::Log2 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() / Complex::with_val(calc.prec, 2).ln() }),
@@ -351,7 +320,7 @@ impl Function {
         match self {
             Function::Drop(n) => { let _ = calc.pop(n); Ok(()) },
             Function::Duplicate => { let v = calc.pop_single()?; calc.stack.push(v.clone()); calc.stack.push(v); Ok(()) },
-            Function::Swap => { let mut items = calc.pop(2)?; items.reverse(); calc.stack.extend(items); Ok(()) },  // TEST ME
+            Function::Swap => { let mut items = calc.pop(2)?; items.reverse(); calc.stack.extend(items); Ok(()) },
             Function::Clear => { calc.stack.clear(); Ok(()) }
             Function::Clipboard => Err(EvalError::UnimplementedError),
             Function::PrettyPrint => {

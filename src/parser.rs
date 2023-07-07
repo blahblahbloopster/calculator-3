@@ -1,5 +1,6 @@
-use std::{ops::{Range, Deref}, fmt::Debug};
+use std::{ops::{Range, Deref, RangeInclusive}, fmt::Debug};
 
+use rand::{rngs::StdRng, Rng};
 use rug::{Float, Complex};
 
 use crate::{units::{UnitTree, UV}, rpn::{RPN, Function}};
@@ -69,9 +70,28 @@ peg::parser! {
             v:u_number() { Infix::Num(v) }
         }
 
+        rule pint() -> Tag<i32>
+            = l:position!() v:$(['0'..='9']+) r:position!() { Tag::new(v.parse::<i32>().unwrap(), l..r) }
+        
+        rule int() -> Tag<i32>
+            = l:position!() "-" v:pint() r:position!() { Tag::new(-*v, l..r) } / pint()
+
+        rule dice() -> DiceInfix = precedence! {
+            n:pint() "*" v:(@) { DiceInfix::Multiply(n, Box::new(v)) }
+            --
+            n:pint() v:(@) { DiceInfix::Multi(n, Box::new(v)) }
+            --
+            "adv(" v:dice() ")" { DiceInfix::Advantage(1, Box::new(v)) }
+            "dis(" v:dice() ")" { DiceInfix::Advantage(1, Box::new(v)) }
+            "(" v:dice() ")" { v }
+            --
+            "d" l:position!() n:pint() r:position!() { DiceInfix::Roll(Tag::new(1..=*n, l..r)) }
+        }
+
+        rule dice_command() -> Tag<Command>
+            = l:position!() "[" expr:dice() "]" r:position!() { Tag::new(Command::Dice(expr), l..r) }
         rule comment_command() -> Tag<Command>
             = l:position!() "\"" [^'"']* "\"" r:position!() { Tag::new(Command::Comment, l..r) }
-
         rule infix_command() -> Tag<Command>
             = l:position!() "'" vl:position!() v:infix() vr:position!() "'" r:position!() { Tag::new(Command::Infix(Tag::new(v, vl..vr)), l..r) }
         rule number_command() -> Tag<Command>
@@ -88,7 +108,7 @@ peg::parser! {
             = l:position!() v:unit() r:position!() { Tag::new(Command::UnitSet(v), l..r) }
         
         rule command() -> Tag<Command>
-            = convert() / infix_command() / number_command() / operation() / var_assign() / function() / cast() / comment_command()
+            = convert() / infix_command() / number_command() / operation() / var_assign() / function() / cast() / comment_command() / dice_command()
         
         pub rule commands() -> Vec<Tag<Command>>
             = v:command() ** _ _ { v }
@@ -157,7 +177,8 @@ pub enum Command {
     Convert(Tag<UnitTree>),
     UnitSet(Tag<UnitTree>),
     Function(Function),
-    Comment
+    Dice(DiceInfix),
+    Comment,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -177,4 +198,45 @@ pub enum Infix {
     MonoOp(Tag<MonoOp>, Box<Infix>),
     FunctionInv(Tag<String>, Vec<Infix>),
     VarAccess(Tag<String>)
+}
+
+#[derive(Debug, Clone)]
+pub enum DiceInfix {
+    Roll(Tag<RangeInclusive<i32>>),
+    Multi(Tag<i32>, Box<DiceInfix>),
+    Multiply(Tag<i32>, Box<DiceInfix>),
+    Advantage(i32, Box<DiceInfix>)
+}
+
+impl DiceInfix {
+    pub fn roll(&self, rng: &mut StdRng) -> i32 {
+        match self {
+            DiceInfix::Roll(range) => rng.gen_range(range.item.clone()),
+            DiceInfix::Multi(n, inner) => {
+                let mut out = 0;
+                for _ in 0..**n {
+                    out += inner.roll(rng);
+                }
+                out
+            }
+            DiceInfix::Multiply(n, inner) => **n * inner.roll(rng),
+            DiceInfix::Advantage(factor, inner) => {
+                let mut out = inner.roll(rng);
+                let is_advantage = *factor > 0;
+                for _ in 0..factor.abs() {
+                    let gotten = inner.roll(rng);
+                    if is_advantage {
+                        if gotten > out {
+                            out = gotten;
+                        }
+                    } else {
+                        if gotten < out {
+                            out = gotten;
+                        }
+                    }
+                }
+                out
+            }
+        }
+    }
 }
