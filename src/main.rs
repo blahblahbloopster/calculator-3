@@ -1,9 +1,10 @@
-use std::{fs::File, io::Read, collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell};
+use std::{fs::File, io::Read, collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell, process::exit};
 
+use dice::{DiceRoll, TaggedDiceRoll};
 use units::UnitHolder;
 use parser::{Command, Infix, Tag, DiceInfix};
 use rpn::RPN;
-use rustyline::{highlight::Highlighter, error::ReadlineError, ConditionalEventHandler, Cmd, EventHandler, KeyEvent};
+use rustyline::{highlight::Highlighter, error::ReadlineError, ConditionalEventHandler, Cmd, EventHandler, KeyEvent, Editor};
 use rustyline_derive::{Completer, Helper, Validator, Hinter};
 
 use crate::parser::rpn_parser;
@@ -11,6 +12,7 @@ use crate::parser::rpn_parser;
 mod parser;
 mod rpn;
 mod units;
+mod dice;
 
 #[derive(Validator, Helper, Completer, Hinter)]
 struct Session {
@@ -111,12 +113,34 @@ impl Color {
         }
     }
 
-    fn dice_color(expr: &DiceInfix, out: &mut ModifiableString) {
-        match expr {
-            DiceInfix::Roll(num) => Color::pnt(Color::Number, num, out),
-            DiceInfix::Multi(k, inner) => { Color::pnt(Color::Operator, k, out); Color::dice_color(inner, out) }
-            DiceInfix::Multiply(k, inner) => { Color::pnt(Color::Number, k, out); Color::dice_color(inner, out) }
-            DiceInfix::Advantage(_n, k) => { Color::dice_color(k, out) }
+    fn dice_color(expr: &Tag<TaggedDiceRoll>, out: &mut ModifiableString) {
+        match &expr.item {
+            TaggedDiceRoll::Simple(d, num) => {
+                Color::pnt(Color::Number, num, out)
+            }
+            TaggedDiceRoll::Constant(n) => Color::pnt(Color::Number, n, out),
+            TaggedDiceRoll::Advantage { l_paren, roll, n, r_paren } => {
+                Self::dice_color(roll, out)
+            }
+            TaggedDiceRoll::Sum(a, op, b) => {
+                Self::dice_color(a, out);
+                Color::pnt(Color::Operator, op, out);
+                Self::dice_color(b, out)
+            }
+            TaggedDiceRoll::Product(a, op, b) => {
+                Self::dice_color(a, out);
+                Color::pnt(Color::Operator, op, out);
+                Self::dice_color(b, out)
+            }
+            TaggedDiceRoll::Multi(n, v) => {
+                Color::pnt(Color::Operator, n, out);
+                Self::dice_color(v, out)
+            }
+            
+            // DiceInfix::Roll(num) => Color::pnt(Color::Number, num, out),
+            // DiceInfix::Multi(k, inner) => { Color::pnt(Color::Operator, k, out); Color::dice_color(inner, out) }
+            // DiceInfix::Multiply(k, inner) => { Color::pnt(Color::Number, k, out); Color::dice_color(inner, out) }
+            // DiceInfix::Advantage(_n, k) => { Color::dice_color(k, out) }
         }
     }
 
@@ -150,6 +174,15 @@ impl Color {
             Command::Dice(expr) => {
                 Color::dice_color(expr, out);
                 return;
+            },
+            Command::DiceProb(expr, comp, thresh) => {
+                Color::dice_color(expr, out);
+                Color::pnt(Color::Operator, comp, out);
+                Color::pnt(Color::Number, thresh, out);
+                return;
+            },
+            Command::UnitDef(_, _) => {
+                Color::Unit
             }
         };
         Color::pnt(color, c, out);
@@ -228,7 +261,29 @@ impl ConditionalEventHandler for Handler {
 }
 
 fn main() {
-    let prec = 1024;
+    // let roll = DiceRoll::Advantage(Box::new(DiceRoll::Simple(1..=20)), 50);
+    // println!("{}", roll.distribution().histogram(80));
+    // exit(0);
+
+    let mut r1: Editor<()> = Editor::new().unwrap();
+
+    let prec: u32;
+    loop {
+        let inp = r1.readline("precision: (1024) ").unwrap().replace("\n", "");
+        if inp.is_empty() {
+            prec = 1024;
+            break;
+        } else {
+            match inp.parse::<u32>() {
+                Ok(v @ 10..=16777216) => {
+                    prec = v;
+                    break
+                }
+                _ => println!("Enter a valid number!")
+            }
+        }
+    }
+    
     let mut buf = String::new();
     File::open("units.txt").unwrap().read_to_string(&mut buf).unwrap();
     let holder = UnitHolder::new(buf, prec);
@@ -274,6 +329,14 @@ fn main() {
                     editor.helper_mut().unwrap().calculator.undo_checkpoint();
                 }
                 for cmd in v {
+                    // match &cmd.item {
+                    //     Command::Dice(v) => {
+                    //         let distr = v.item.as_roll().distribution();
+                    //         let expected = distr.expected_value();
+                    //         println!("========\n{}expected value:{}\n========", distr.histogram(80), expected)
+                    //     }
+                    //     _ => {}
+                    // }
                     let res = editor.helper_mut().unwrap().calculator.run(cmd.item);
                     match res {
                         Ok(_) => {}

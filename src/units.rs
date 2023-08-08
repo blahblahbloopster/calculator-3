@@ -356,8 +356,8 @@ impl UV {
 
 #[derive(Debug, Clone)]
 pub struct UnitHolder {
-    units: Vec<ParsedUnit>,
-    prec: u32
+    pub units: Vec<ParsedUnit>,
+    pub prec: u32
 }
 
 impl UnitHolder {
@@ -385,8 +385,8 @@ impl UnitHolder {
 
 #[derive(Debug, Clone)]
 pub struct ParsedUnit {
-    names: Vec<String>,
-    unit: UnitTree
+    pub names: Vec<String>,
+    pub unit: UnitTree
 }
 
 peg::parser! {

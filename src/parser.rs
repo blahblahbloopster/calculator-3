@@ -1,9 +1,9 @@
-use std::{ops::{Range, Deref, RangeInclusive}, fmt::Debug};
+use std::{ops::{Range, Deref, RangeInclusive}, fmt::Debug, cmp::Ordering};
 
 use rand::{rngs::StdRng, Rng};
 use rug::{Float, Complex};
 
-use crate::{units::{UnitTree, UV}, rpn::{RPN, Function}};
+use crate::{units::{UnitTree, UV}, rpn::{RPN, Function}, dice::{DiceRoll, TaggedDiceRoll}};
 
 peg::parser! {
     pub grammar rpn_parser(calc: &RPN) for str {
@@ -16,7 +16,7 @@ peg::parser! {
             = $(digits() ("." digits())?)
         
         rule float() -> Float
-            = v:$(decimal() ("e" float())?) {? Ok(Float::with_val(calc.prec, Float::parse(v).or(Err("number format error"))?)) }
+            = v:$("-"? decimal() ("e" float())?) {? Ok(Float::with_val(calc.prec, Float::parse(v).or(Err("number format error"))?)) }
         
         rule num() -> Complex
             = "(" real:float() ("," / "+")? imaginary:float() "i"? ")" {? Ok(Complex::with_val(calc.prec, (real, imaginary))) } /
@@ -76,18 +76,28 @@ peg::parser! {
         rule int() -> Tag<i32>
             = l:position!() "-" v:pint() r:position!() { Tag::new(-*v, l..r) } / pint()
 
-        rule dice() -> DiceInfix = precedence! {
-            n:pint() "*" v:(@) { DiceInfix::Multiply(n, Box::new(v)) }
+        rule dice() -> Tag<TaggedDiceRoll> = precedence! {
+            a:@ lp:position!() "+" rp:position!() b:(@) { let loc = a.loc.start..b.loc.end; Tag::new(TaggedDiceRoll::Sum(Box::new(a), Tag::new((), lp..rp), Box::new(b)), loc) }
             --
-            n:pint() v:(@) { DiceInfix::Multi(n, Box::new(v)) }
+            a:@ lp:position!() "*" rp:position!() b:(@) { let loc = a.loc.start..b.loc.end; Tag::new(TaggedDiceRoll::Product(Box::new(a), Tag::new((), lp..rp), Box::new(b)), loc) }
             --
-            "adv(" v:dice() ")" { DiceInfix::Advantage(1, Box::new(v)) }
-            "dis(" v:dice() ")" { DiceInfix::Advantage(1, Box::new(v)) }
+            l:position!() n:pint() v:(@) { let loc = l..v.loc.end; Tag::new(TaggedDiceRoll::Multi(n, Box::new(v)), loc) }
+            --
+            l:position!() "adv(" lp:position!() v:dice() rp:position!() ")" r:position!() { Tag::new(TaggedDiceRoll::Advantage { l_paren: Tag::new((), l..lp), roll: Box::new(v), n: 1, r_paren: Tag::new((), rp..r) }, l..r) }
+            l:position!() "dis(" lp:position!() v:dice() rp:position!() ")" r:position!() { Tag::new(TaggedDiceRoll::Advantage { l_paren: Tag::new((), l..lp), roll: Box::new(v), n: -1, r_paren: Tag::new((), rp..r) }, l..r) }
             "(" v:dice() ")" { v }
             --
-            "d" l:position!() n:pint() r:position!() { DiceInfix::Roll(Tag::new(1..=*n, l..r)) }
+            l:position!() "d" lp:position!() n:pint() r:position!() { Tag::new(TaggedDiceRoll::Simple(Tag::new((), l..lp), n), l..r) }
         }
 
+        rule ordering() -> Comp
+            = ">=" { Comp::GrEq } / ">" { Comp::Gr } / "==" { Comp::Eq } / "=" { Comp::Eq } / "!=" { Comp::NEq } / "<=" { Comp::LeEq} / "<" { Comp::Le }
+        
+        rule ord() -> Tag<Comp>
+            = l:position!() o:ordering() r:position!() { Tag::new(o, l..r) }
+
+        rule dice_prop_command() -> Tag<Command>
+            = l:position!() ("[P(" / "[p(") expr:dice() _ comp:ord() _ num:pint() ")]" r:position!() { Tag::new(Command::DiceProb(expr, comp, num), l..r) }
         rule dice_command() -> Tag<Command>
             = l:position!() "[" expr:dice() "]" r:position!() { Tag::new(Command::Dice(expr), l..r) }
         rule comment_command() -> Tag<Command>
@@ -106,9 +116,11 @@ peg::parser! {
             = l:position!() "to" _ v:unit() r:position!() { Tag::new(Command::Convert(v), l..r) }
         rule cast() -> Tag<Command>
             = l:position!() v:unit() r:position!() { Tag::new(Command::UnitSet(v), l..r) }
+        rule unit_def() -> Tag<Command>
+            = l:position!() "|" _ n:ident() _ e:infix()? _ "|" r:position!() { Tag::new(Command::UnitDef(n.map(|x| x.to_string()), e), l..r) }
         
         rule command() -> Tag<Command>
-            = convert() / infix_command() / number_command() / operation() / var_assign() / function() / cast() / comment_command() / dice_command()
+            = convert() / infix_command() / number_command() / operation() / var_assign() / function() / cast() / comment_command() / dice_prop_command() / dice_command() / unit_def()
         
         pub rule commands() -> Vec<Tag<Command>>
             = v:command() ** _ _ { v }
@@ -177,8 +189,28 @@ pub enum Command {
     Convert(Tag<UnitTree>),
     UnitSet(Tag<UnitTree>),
     Function(Function),
-    Dice(DiceInfix),
+    Dice(Tag<TaggedDiceRoll>),
+    UnitDef(Tag<String>, Option<Infix>),
+    DiceProb(Tag<TaggedDiceRoll>, Tag<Comp>, Tag<i32>),
     Comment,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Comp {
+    LeEq, Le, Eq, NEq, Gr, GrEq
+}
+
+impl Comp {
+    pub fn check(&self, a: i32, b: i32) -> bool {
+        match self {
+            Comp::LeEq => a <= b,
+            Comp::Le => a < b,
+            Comp::Eq => a == b,
+            Comp::NEq => a != b,
+            Comp::Gr => a > b,
+            Comp::GrEq => a >= b,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -237,6 +269,21 @@ impl DiceInfix {
                 }
                 out
             }
+        }
+    }
+
+    pub fn as_roll(&self) -> DiceRoll {
+        match self {
+            DiceInfix::Roll(v) => DiceRoll::Simple(v.item.clone()),
+            DiceInfix::Multi(a, b) => {
+                let mut out = DiceRoll::Constant(0);
+                for _ in 0..a.item {
+                    out = DiceRoll::Sum(Box::new(out), Box::new(b.as_roll()))
+                }
+                out
+            }
+            DiceInfix::Multiply(n, b) => DiceRoll::Product(Box::new(DiceRoll::Constant(n.item)), Box::new(b.as_roll())),
+            DiceInfix::Advantage(count, inner) => DiceRoll::Advantage(Box::new(inner.as_roll()), *count)
         }
     }
 }

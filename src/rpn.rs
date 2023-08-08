@@ -1,9 +1,9 @@
 use std::{collections::HashMap, fmt::{Display, Formatter, Debug}};
 
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{rngs::StdRng, SeedableRng, prelude::Distribution};
 use regex::Regex;
 use rug::{Float, Complex, float::Constant::Pi, ops::Pow};
-use crate::{parser::{Command, Infix}, units::{UV, UnitTree, UVError, UnitHolder}};
+use crate::{parser::{Command, Infix}, units::{UV, UnitTree, UVError, UnitHolder, ParsedUnit, UnitName}};
 
 pub struct RPN {
     pub prec: u32,
@@ -127,7 +127,50 @@ impl RPN {
                 Ok(())
             }
             Command::Dice(tree) => {
-                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, tree.roll(&mut self.rng)) });
+                let roll = tree.item.as_roll().distribution().sample(&mut self.rng);
+                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, roll) });
+                Ok(())
+            },
+            Command::DiceProb(tree, comp, thresh) => {
+                let mut acc = 0.0;
+                let mut total = 0.0;
+
+                let distr = tree.item.as_roll().distribution();
+
+                for (i, weight) in distr.distr.iter().enumerate() {
+                    let value = i as i32 + distr.range.start();
+                    if comp.check(value, thresh.item) {
+                        acc += *weight;
+                    }
+                    total += *weight;
+                }
+
+                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, acc / total) });
+
+                Ok(())
+            }
+            Command::UnitDef(name, val) => {
+                let value = match val {
+                    Some(v) => self.infix_eval(v)?,
+                    None => UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, 1) },
+                };
+
+                let names = UnitName { main: name.item.clone(), others: vec![] };
+
+                // let (r, i) = (value.value.clone() - Complex::with_val(self.prec, 1)).into_real_imag();
+
+                // let unit = if r.abs().to_f64() < 0.00001 && i.abs().to_f64() < 0.00001 {
+                //     value.unit.clone()
+                // } else {
+                //     UnitTree::Scale(Box::new(value.unit), value.value.real().clone(), names.clone())
+                // };
+                let unit = UnitTree::Scale(Box::new(value.unit), value.value.real().clone(), names.clone());
+                // println!("{}", *name);
+
+                self.units.units.push(ParsedUnit { names: vec![name.item], unit });
+
+                // println!("{:?}", self.units.parse("baby"));
+
                 Ok(())
             }
             Command::Comment => Ok(())

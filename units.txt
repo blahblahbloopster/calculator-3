@@ -13,9 +13,11 @@ steradian / sr (prefixes)
 
 # derived (metric)
 hertz / Hz: 1 s^-1 (prefixes)
+c: 299792458 m/s
 
 minute / min: 60 s
 hour / h: 60 min
+day: 24 h
 
 nanogram / ng: 0.000000000001 kg
 microgram / ug / μg: 0.000000001 kg
@@ -49,6 +51,11 @@ watthour / Wh: 1 W*h (prefixes)
 calorie / scical / cal: 4.184 J (prefixes)
 lumen / lm: 1 cd/sr (prefixes)
 lux / lz: 1 lm / m^2 (prefixes)
+hectare / ha: 10000 m^2
+
+kilotontnt / kt: 4.184 TJ
+megatontnt / Mt: 1000 kilotontnt
+gigatontnt / Gt: 1000 megatontnt
 
 
 # derived (imperial)
@@ -63,6 +70,7 @@ cable: 120 fathom
 nauticalmile / nmi: 1852 m
 # no, I'm not adding the other moronic imperial area measures
 acre:  4046.8564224 m^2
+
 
 # these are the US liquid ones, I'm not adding any others, fuck you
 minim: 61.611519921875 μL
@@ -115,3 +123,5 @@ shake: 10 ns (prefixes)
 degree / deg: 2*pi/360 rad
 arcminute / arcmin: 1/60 deg
 arcsecond / arcsec: 1/60 arcmin
+
+gee: 9.80665 m/s^2
