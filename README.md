@@ -29,6 +29,10 @@ Ctrl+d can be used to exit
 | `s` | Swap | `5 6 s` -> `6 5` on the stack |
 | `pretty` | Pretty-print | `123e54 pretty` -> 123 septendecillion |
 | `clear` | Clear stack | `1 2 3 4 5 clear` -> empty stack |
+| `|<unitname>|` | Define unit | `|person|` -> you can now do `1\`person\`` |
+| `|<unitname> <unitvalue>|` | Define unit | `|town 100\`people\` * 10|` |
+| `[<dice>]` | Roll dice | `[1d8 + 2d10]` |
+| `[P(<dice>)]` | Calculate dice probability distribution | `[P(1d8)]` shows a histogram and expected value for a d8 |
 
 ### Supported functions
 sin, cos, tan, cot, asin, acos, atan, atan2 (coming soon), acot (coming soon), sqrt, ln, log10, log2, logb
