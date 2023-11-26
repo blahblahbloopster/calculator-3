@@ -35,7 +35,7 @@ impl DiceDistr {
         let mut out: HashMap<i32, f64> = HashMap::new();
 
         'outer: loop {
-            let value = func(distrs.iter().enumerate().map(|(i, x)| positions[i]).collect());
+            let value = func(distrs.iter().enumerate().map(|(i, _)| positions[i]).collect());
             let probability: f64 = distrs.iter().enumerate().map(|(i, x)| x.p(positions[i]).unwrap()).product();
 
             let v = *out.get(&value).unwrap_or(&0.0) + probability;
@@ -101,6 +101,19 @@ impl DiceDistr {
 
         acc / total
     }
+
+    pub fn percentile(&self, value: i32) -> f64 {
+        let mut total = 0.0;
+        let mut acc = 0.0;
+        for (v, prob) in self.range.clone().zip(self.distr.iter()) {
+            if value >= v {
+                acc += prob;
+            }
+            total += prob;
+        }
+
+        (acc / total) * 100.0
+    }
 }
 
 pub enum DiceRoll {
@@ -108,6 +121,7 @@ pub enum DiceRoll {
     Constant(i32),
     Advantage(Box<DiceRoll>, i32),
     Sum(Box<DiceRoll>, Box<DiceRoll>),
+    Difference(Box<DiceRoll>, Box<DiceRoll>),
     Product(Box<DiceRoll>, Box<DiceRoll>)
 }
 
@@ -117,6 +131,7 @@ pub enum TaggedDiceRoll {
     Constant(Tag<i32>),
     Advantage { l_paren: Tag<()>, roll: Box<Tag<TaggedDiceRoll>>, n: i32, r_paren: Tag<()> },
     Sum(Box<Tag<TaggedDiceRoll>>, Tag<()>, Box<Tag<TaggedDiceRoll>>),
+    Difference(Box<Tag<TaggedDiceRoll>>, Tag<()>, Box<Tag<TaggedDiceRoll>>),
     Product(Box<Tag<TaggedDiceRoll>>, Tag<()>, Box<Tag<TaggedDiceRoll>>),
     Multi(Tag<i32>, Box<Tag<TaggedDiceRoll>>)
 }
@@ -130,7 +145,8 @@ impl TaggedDiceRoll {
             TaggedDiceRoll::Constant(v) => DiceRoll::Constant(v.item),
             TaggedDiceRoll::Advantage { roll, n, ..  } => DiceRoll::Advantage(Box::new(roll.as_roll()), *n),
             TaggedDiceRoll::Sum(a, _, b) => DiceRoll::Sum(Box::new(a.as_roll()), Box::new(b.as_roll())),
-            TaggedDiceRoll::Product(a, _, b) => DiceRoll::Sum(Box::new(a.as_roll()), Box::new(b.as_roll())),
+            TaggedDiceRoll::Difference(a, _, b) => DiceRoll::Difference(Box::new(a.as_roll()), Box::new(b.as_roll())),
+            TaggedDiceRoll::Product(a, _, b) => DiceRoll::Product(Box::new(a.as_roll()), Box::new(b.as_roll())),
             TaggedDiceRoll::Multi(n, v) => {
                 let mut out = DiceRoll::Constant(0);
                 for _ in 0..n.item {
@@ -159,6 +175,7 @@ impl DiceRoll {
                 }
             }
             DiceRoll::Sum(a, b) => DiceDistr::multidimensional(vec![&a.distribution(), &b.distribution()], |values| values.iter().sum()),
+            DiceRoll::Difference(a, b) => DiceDistr::multidimensional(vec![&a.distribution(), &b.distribution()], |values| values[0] - values[1]),
             DiceRoll::Product(a, b) => DiceDistr::multidimensional(vec![&a.distribution(), &b.distribution()], |values| values.iter().product()),
         }
     }

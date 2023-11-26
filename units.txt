@@ -7,23 +7,29 @@ kelvin / K (prefixes)
 ampere / amp / A (prefixes)
 meter / m (prefixes)
 radian / rad (prefixes)
+*bit / shannon / Sh / b (prefixes)
 
 hertz / Hz: 1 s^-1 (prefixes)
 steradian / sr (prefixes)
 
+*jim / j (prefixes)
+slimjim / sj: 0.1 jim (prefixes)
+
+byte / B: 8 bit (prefixes)
+
 # derived (metric)
 hertz / Hz: 1 s^-1 (prefixes)
-c: 299792458 m/s
+*c: 299792458 m/s
 
 minute / min: 60 s
 hour / h: 60 min
-day: 24 h
+*day: 24 h
 
 nanogram / ng: 0.000000000001 kg
 microgram / ug / μg: 0.000000001 kg
 milligram / mg: 0.000001 kg
 gram / g: 0.001 kg
-ton / t: 1000 kg
+*metricton / ton / t: 1000 kg
 
 litre / liter / L: 1000 cm^3 (prefixes)
 molar / M: 1 mole/liter (prefixes)
@@ -36,7 +42,7 @@ volt / V: 1 J/C (prefixes)
 weber / Wb: 1 V*s (prefixes)
 tesla / T: 1 Wb/m^2 (prefixes)
 farad / F: 1 C/V (prefixes)
-ohm: 1 V/A (prefixes)
+*ohm: 1 V/A (prefixes)
 siemens / S: 1 A/V (prefixes)
 henry / H: 1 V*s/A (prefixes)
 becquerel / Bq: 1 Hz (prefixes)
@@ -44,13 +50,13 @@ gray / Gy: 1 J/kg (prefixes)
 sievert / Sv: 1 J/kg (prefixes)
 katal / kat: 1 mol/s (prefixes)
 micron: 1 um
-bar: 100 kPa (prefixes)
-rad: 0.1 mGy (prefixes)
-rem: 0.01 Sv
+*bar: 100 kPa (prefixes)
+# (conflicts with radian) rad: 0.1 mGy (prefixes)
+*rem: 0.01 Sv
 watthour / Wh: 1 W*h (prefixes)
 calorie / scical / cal: 4.184 J (prefixes)
 lumen / lm: 1 cd/sr (prefixes)
-lux / lz: 1 lm / m^2 (prefixes)
+*lux / lz: 1 lm / m^2 (prefixes)
 hectare / ha: 10000 m^2
 
 kilotontnt / kt: 4.184 TJ
@@ -63,7 +69,7 @@ inch / in: 2.54 cm
 foot / ft: 12 in
 yard / yd: 3 ft
 mile / mi: 5280 ft
-mil / thou: 0.001 in
+*mil / thou: 0.001 in
 league: 5280 yd
 fathom: 2 yd
 cable: 120 fathom
@@ -80,12 +86,12 @@ tablespoon / tbsp: 3 tsp
 fluidounce / floz: 2 tbsp
 shot / jig: 1.5 floz
 gill: 4 floz
-cup: 2 gill
+*cup: 2 gill
 pint / pt: 2 cup
 quart / qt: 2 pint
 pottle / pot: 2 quart
 usflgallon / gallon / gal: 4 quart
-# except these two
+# except these
 usdrygallon / drygal: 4.40488377086 L
 imperialgallon: 4.54609 L
 barrel: 31.5 gal
@@ -123,5 +129,6 @@ shake: 10 ns (prefixes)
 degree / deg: 2*pi/360 rad
 arcminute / arcmin: 1/60 deg
 arcsecond / arcsec: 1/60 arcmin
+rotation / rot: 2*pi rad
 
-gee: 9.80665 m/s^2
+*gee: 9.80665 m/s^2

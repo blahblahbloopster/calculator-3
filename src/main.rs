@@ -1,8 +1,8 @@
-use std::{fs::File, io::Read, collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell, process::exit};
+use std::{fs::File, io::Read, collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell};
 
-use dice::{DiceRoll, TaggedDiceRoll};
+use dice::TaggedDiceRoll;
 use units::UnitHolder;
-use parser::{Command, Infix, Tag, DiceInfix};
+use parser::{Command, Infix, Tag};
 use rpn::RPN;
 use rustyline::{highlight::Highlighter, error::ReadlineError, ConditionalEventHandler, Cmd, EventHandler, KeyEvent, Editor};
 use rustyline_derive::{Completer, Helper, Validator, Hinter};
@@ -127,6 +127,11 @@ impl Color {
                 Color::pnt(Color::Operator, op, out);
                 Self::dice_color(b, out)
             }
+            TaggedDiceRoll::Difference(a, op, b) => {
+                Self::dice_color(a, out);
+                Color::pnt(Color::Operator, op, out);
+                Self::dice_color(b, out)
+            }
             TaggedDiceRoll::Product(a, op, b) => {
                 Self::dice_color(a, out);
                 Color::pnt(Color::Operator, op, out);
@@ -179,6 +184,10 @@ impl Color {
                 Color::dice_color(expr, out);
                 Color::pnt(Color::Operator, comp, out);
                 Color::pnt(Color::Number, thresh, out);
+                return;
+            },
+            Command::DiceHistogram(expr) => {
+                Color::dice_color(expr, out);
                 return;
             },
             Command::UnitDef(_, _) => {
@@ -285,7 +294,7 @@ fn main() {
     }
     
     let mut buf = String::new();
-    File::open("units.txt").unwrap().read_to_string(&mut buf).unwrap();
+    File::open("/home/max/synced/rustcalc-4/units.txt").unwrap().read_to_string(&mut buf).unwrap();
     let holder = UnitHolder::new(buf, prec);
 
     let rpn = RPN::new(prec, holder);

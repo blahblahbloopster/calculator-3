@@ -1,5 +1,6 @@
-use std::{fmt::{Display, Debug}, collections::HashMap, ops::{Mul, Div, Add, Neg, Sub}};
+use std::{fmt::{Display, Debug, format}, collections::HashMap, ops::{Mul, Div, Add, Neg, Sub}};
 
+use regex::Regex;
 use rug::{Float, Complex, ops::Pow};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -361,7 +362,8 @@ pub struct UnitHolder {
 }
 
 impl UnitHolder {
-    pub fn single_from_string(&self, inp: &str) -> Option<UnitTree> {
+    pub fn single_from_string(&self, input: &str) -> Option<UnitTree> {
+        let inp = &input.replace("*", "");
         for item in &self.units {
             for subitem in &item.names {
                 if subitem == inp {
@@ -374,7 +376,55 @@ impl UnitHolder {
 
     pub fn new(inp: String, prec: u32) -> UnitHolder {
         let mut out = UnitHolder { units: vec![], prec };
-        inp.lines().filter(|x| !(x.starts_with('#') || x.is_empty())).for_each(|x| { let unit = unit_file_parser::row(x, &mut out).or(Err(format!("error parsing '{}'", x))).unwrap(); out.units.extend(unit); });
+        let mut duplicates = vec![];
+        inp.lines().filter(|x| !(x.starts_with('#') || x.is_empty())).for_each(|x| {
+            let unit = unit_file_parser::row(x, &mut out).or(Err(format!("error parsing '{}'", x))).unwrap();
+            for u in unit {
+                for v in &out.units {
+                    if u.names.iter().any(|n1| v.names.iter().any(|n2| n1 == n2)) {
+                        let mut de_microed_a = u.names.clone();
+                        let mut de_microed_b = v.names.clone();
+
+                        for item in &mut de_microed_a {
+                            if item.starts_with("micro") {
+                                *item = format!("μ{}", item.strip_prefix("micro").unwrap());
+                            }
+                            if item.starts_with("u") {
+                                *item = format!("μ{}", item.strip_prefix("u").unwrap());
+                            }
+                        }
+                        for item in &mut de_microed_b {
+                            if item.starts_with("micro") {
+                                *item = format!("μ{}", item.strip_prefix("micro").unwrap());
+                            }
+                            if item.starts_with("u") {
+                                *item = format!("μ{}", item.strip_prefix("u").unwrap());
+                            }
+                        }
+
+                        if de_microed_a != de_microed_b {
+                            duplicates.push((u.names.clone(), v.names.clone()))
+                        }
+
+                        // panic!("duplicate unit {:?} and {:?}", u.names, v.names);
+                    }
+                }
+
+                out.units.push(u);
+            }
+            // out.units.extend(unit);
+        });
+        if !duplicates.is_empty() {
+            panic!("duplicate units found:\n{}", duplicates.iter().map(|(a, b)| format!("{a:?} and {b:?}")).collect::<Vec<_>>().join("\n"))
+        }
+
+        for u in &out.units {
+            for n in &u.names {
+                if n.contains("*") {
+                    panic!()
+                }
+            }
+        }
         out
     }
 
@@ -410,12 +460,12 @@ peg::parser! {
                 } else {
                     UnitTree::Product(out, None)
                 }
-        }
+            }
             _ u:$(['a'..='z' | 'A'..='Z' | 'μ']+) _ { holder.single_from_string(u).expect(format!("failed to parse '{}'", u).as_str()) }
         }
 
         rule name() -> &'input str
-            = _ v:$(['a'..='z' | 'A'..='Z' | 'μ']+) _ { v }
+            = _ v:$(['a'..='z' | 'A'..='Z' | 'μ' | '*'] ['a'..='z' | 'A'..='Z' | 'μ']*) _ { v }
         
         rule digits() -> &'input str
             = $(['0'..='9']+)
@@ -446,46 +496,68 @@ peg::parser! {
         
         pub rule row(holder: &mut UnitHolder) -> Vec<ParsedUnit>
             = original:r(holder) "(prefixes)" { original.prefixes() } /
-              original:r(holder) { vec![original] }
+              original:r(holder) { original.de_asterisk() }
     }
 }
 
 impl ParsedUnit {
+    fn de_asterisk(self) -> Vec<ParsedUnit> {
+        let mut out = self;
+        for item in &mut out.names {
+            if item.starts_with("*") {
+                *item = item.strip_prefix("*").unwrap().to_string();
+            }
+        }
+        vec![out]
+    }
+
     fn prefixes(self) -> Vec<ParsedUnit> {
         let prefixes = vec![
-            ("quetta", 	"Q", 	30),
-            ("ronna", 	"R", 	27),
-            ("yotta", 	"Y", 	24),
-            ("zetta", 	"Z", 	21),
-            ("exa", 	"E", 	18),
-            ("peta", 	"P", 	15),
-            ("tera", 	"T", 	12),
-            ("giga", 	"G", 	9),
-            ("mega", 	"M", 	6),
-            ("kilo", 	"k", 	3),
-            ("hecto", 	"h", 	2),
-            ("deca", 	"da", 	1),
-            ("deci", 	"d", 	-1),
-            ("centi", 	"c", 	-2),
-            ("milli", 	"m", 	-3),
-            ("micro", 	"μ", 	-6),
-            ("micro", 	"u", 	-6),
-            ("nano", 	"n", 	-9),
-            ("pico", 	"p", 	-12),
-            ("femto", 	"f", 	-15),
-            ("atto", 	"a", 	-18),
-            ("zepto", 	"z", 	-21),
-            ("yocto", 	"y", 	-24),
-            ("ronto", 	"r", 	-27),
-            ("quecto", 	"q", 	-30),
+            ("quetta", 	"Q", 	Float::with_val(1024, 10).pow(30)),
+            ("ronna", 	"R", 	Float::with_val(1024, 10).pow(27)),
+            ("yotta", 	"Y", 	Float::with_val(1024, 10).pow(24)),
+            ("zetta", 	"Z", 	Float::with_val(1024, 10).pow(21)),
+            ("exa", 	"E", 	Float::with_val(1024, 10).pow(18)),
+            ("peta", 	"P", 	Float::with_val(1024, 10).pow(15)),
+            ("tera", 	"T", 	Float::with_val(1024, 10).pow(12)),
+            ("giga", 	"G", 	Float::with_val(1024, 10).pow(9)),
+            ("mega", 	"M", 	Float::with_val(1024, 10).pow(6)),
+            ("kilo", 	"k", 	Float::with_val(1024, 10).pow(3)),
+            ("hecto", 	"h", 	Float::with_val(1024, 10).pow(2)),
+            ("deca", 	"da", 	Float::with_val(1024, 10).pow(1)),
+            ("deci", 	"d", 	Float::with_val(1024, 10).pow(-1)),
+            ("centi", 	"c", 	Float::with_val(1024, 10).pow(-2)),
+            ("milli", 	"m", 	Float::with_val(1024, 10).pow(-3)),
+            ("micro", 	"μ", 	Float::with_val(1024, 10).pow(-6)),
+            ("micro", 	"u", 	Float::with_val(1024, 10).pow(-6)),
+            ("nano", 	"n", 	Float::with_val(1024, 10).pow(-9)),
+            ("pico", 	"p", 	Float::with_val(1024, 10).pow(-12)),
+            ("femto", 	"f", 	Float::with_val(1024, 10).pow(-15)),
+            ("atto", 	"a", 	Float::with_val(1024, 10).pow(-18)),
+            ("zepto", 	"z", 	Float::with_val(1024, 10).pow(-21)),
+            ("yocto", 	"y", 	Float::with_val(1024, 10).pow(-24)),
+            ("ronto", 	"r", 	Float::with_val(1024, 10).pow(-27)),
+            ("quecto", 	"q", 	Float::with_val(1024, 10).pow(-30)),
+
+            ("quebi", 	"Qi", 	Float::with_val(1024, 2).pow(100)),
+            ("robi", 	"Ri", 	Float::with_val(1024, 2).pow(90)),
+            ("yobi", 	"Yi", 	Float::with_val(1024, 2).pow(80)),
+            ("zebi", 	"Zi", 	Float::with_val(1024, 2).pow(70)),
+            ("exbi", 	"Ei", 	Float::with_val(1024, 2).pow(60)),
+            ("pebi", 	"Pi", 	Float::with_val(1024, 2).pow(50)),
+            ("tebi", 	"Ti", 	Float::with_val(1024, 2).pow(40)),
+            ("gibi", 	"Gi", 	Float::with_val(1024, 2).pow(30)),
+            ("mebi", 	"Mi", 	Float::with_val(1024, 2).pow(20)),
+            ("kibi", 	"Ki", 	Float::with_val(1024, 2).pow(10)),
         ];
 
         let mut out = vec![self.clone()];
-        for (full, abbrev, power) in prefixes {
-            let factor = Float::with_val(1024, 10).pow(power);
+        out[0].names.iter_mut().for_each(|x| { *x = x.replace("*", "") });
+        for (full, abbrev, factor) in prefixes {
+            // let factor = Float::with_val(1024, 10).pow(power);
 
-            let mut names = self.names.iter().filter(|x| x.len() > 3).map(|x| format!("{}{}", full, x)).collect::<Vec<_>>();
-            names.extend(self.names.iter().filter(|x| x.len() <= 3).map(|x| format!("{}{}", abbrev, x)));
+            let mut names = self.names.iter().filter(|x| x.len() > 3 || x.starts_with("*")).map(|x| format!("{}{}", full, x.strip_prefix("*").unwrap_or(x))).collect::<Vec<_>>();
+            names.extend(self.names.iter().filter(|x| x.len() <= 3 && !x.starts_with("*")).map(|x| format!("{}{}", abbrev, x.strip_prefix("*").unwrap_or(x))));
 
             let mut others = names.clone();
             let main = others.remove(0);

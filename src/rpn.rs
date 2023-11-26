@@ -8,21 +8,73 @@ use crate::{parser::{Command, Infix}, units::{UV, UnitTree, UVError, UnitHolder,
 pub struct RPN {
     pub prec: u32,
     pub units: UnitHolder,
-    pub stack: Vec<UV>,
+    pub stack: Vec<StackItem>,
     pub vars: HashMap<String, UV>,
     pub undo_checkpoints: Vec<UndoCheckpoint>,
     rng: StdRng
 }
 
+#[derive(Debug, Clone)]
+pub enum StackItem {
+    Num(UV),
+    NumWithPercentile(UV, f64)
+}
+
+impl StackItem {
+    pub fn to_uv(self) -> Result<UV, EvalError> {
+        self.try_into()
+    }
+
+    pub fn b_uv(&self) -> Result<&UV, EvalError> {
+        self.try_into()
+    }
+
+    pub fn approx_size(&self) -> u32 {
+        match self {
+            StackItem::Num(v) => v.value.prec().0 / 8 + v.value.prec().1 / 8,
+            StackItem::NumWithPercentile(v, _) => v.value.prec().0 / 8 + v.value.prec().1 / 8 + 4,
+        }
+    }
+}
+
+impl TryFrom<StackItem> for UV {
+    type Error = EvalError;
+
+    fn try_from(value: StackItem) -> Result<Self, Self::Error> {
+        match value {
+            StackItem::Num(v) => Ok(v),
+            StackItem::NumWithPercentile(v, _) => Ok(v),
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a StackItem> for &'a UV {
+    type Error = EvalError;
+
+    fn try_from(value: &'a StackItem) -> Result<Self, Self::Error> {
+        match value {
+            StackItem::Num(v) => Ok(&v),
+            StackItem::NumWithPercentile(v, _) => Ok(&v),
+        }
+    }
+}
+
+
 pub struct UndoCheckpoint {
-    pub stack: Vec<UV>,
+    pub stack: Vec<StackItem>,
     pub vars: HashMap<String, UV>
 }
 
 impl UndoCheckpoint {
     // pain
     fn size(&self) -> usize {
-        self.stack.iter().map(|x| (x.value.prec().0 / 8 + x.value.prec().1 / 8) as usize).sum::<usize>() + self.vars.values().map(|x| (x.value.prec().0 / 8 + x.value.prec().1 / 8) as usize).sum::<usize>()
+        self.stack.iter().map(|x| x.approx_size() as usize).sum::<usize>()
+    }
+}
+
+impl From<UV> for StackItem {
+    fn from(value: UV) -> Self {
+        StackItem::Num(value)
     }
 }
 
@@ -73,7 +125,7 @@ impl RPN {
         }
         let mut out = vec![];
         for _ in 0..n {
-            out.push(self.stack.pop().unwrap());
+            out.push(self.stack.pop().unwrap().try_into()?);
         }
         out.reverse();
         Ok(out)
@@ -83,27 +135,43 @@ impl RPN {
         if self.stack.is_empty() {
             return Err(EvalError::EmptyStack);
         }
+        Ok(self.stack.pop().unwrap().try_into()?)
+    }
+
+    fn pop_full(&mut self, n: usize) -> Result<Vec<StackItem>, EvalError> {
+        if n > self.stack.len() {
+            return Err(EvalError::EmptyStack);
+        }
+        let mut out = vec![];
+        for _ in 0..n {
+            out.push(self.stack.pop().unwrap());
+        }
+        out.reverse();
+        Ok(out)
+    }
+
+
+    fn pop_single_full(&mut self) -> Result<StackItem, EvalError> {
+        if self.stack.is_empty() {
+            return Err(EvalError::EmptyStack);
+        }
         Ok(self.stack.pop().unwrap())
     }
 
     pub fn run(&mut self, command: Command) -> Result<(), EvalError> {
         match command {
-            Command::Number(v) => { self.stack.push(v.item.as_uv()); Ok(()) }
+            Command::Number(v) => { self.stack.push(v.item.as_uv().into()); Ok(()) }
             Command::Operation(op) => {
-                let args = self.pop(2)?;
-                // TODO: don't clone
-                let a = args[0].clone();
-                let b = args[1].clone();
-
                 let out = match *op {
-                    crate::parser::Op::Plus => a + b,
-                    crate::parser::Op::Minus => a - b,
-                    crate::parser::Op::Times => Ok(a * b),
-                    crate::parser::Op::Divide => a / b,
-                    crate::parser::Op::Pow => Ok(a.exp(b.value)),
+                    crate::parser::Op::Plus => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); a + b },
+                    crate::parser::Op::Minus => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); a - b },
+                    crate::parser::Op::Times => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); Ok(a * b) },
+                    crate::parser::Op::Divide => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); a / b },
+                    crate::parser::Op::Pow => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); Ok(a.exp(b.value)) },
+                    crate::parser::Op::Factorial => { let arg = &self.pop(1)?[0]; Ok(UV { unit: UnitTree::dimensionless(), value: (*(arg.value.real().clone().gamma().as_complex())).clone() }) }
                 }.map_err(|x| EvalError::UnitError(x))?;
 
-                self.stack.push(out);
+                self.stack.push(out.into());
 
                 Ok(())
             }
@@ -112,23 +180,25 @@ impl RPN {
             }
             Command::Infix(e) => {
                 let out = self.infix_eval(e.item)?;
-                self.stack.push(out);
+                self.stack.push(out.into());
                 Ok(())
             }
             Command::Convert(dst) => {
                 let v = self.pop(1)?[0].clone();
                 let converted = v.convert(dst.item).map_err(|x| EvalError::UnitError(x))?;
-                self.stack.push(converted);
+                self.stack.push(converted.into());
                 Ok(())
             }
             Command::UnitSet(v) => {
                 let popped = self.pop_single()?;
-                self.stack.push(UV { unit: v.item, value: popped.value });
+                self.stack.push(UV { unit: v.item, value: popped.value }.into());
                 Ok(())
             }
             Command::Dice(tree) => {
-                let roll = tree.item.as_roll().distribution().sample(&mut self.rng);
-                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, roll) });
+                let distr = tree.item.as_roll().distribution();
+                let roll = distr.sample(&mut self.rng);
+                let percentile = distr.percentile(roll);
+                self.stack.push(StackItem::NumWithPercentile(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, roll) }, percentile));
                 Ok(())
             },
             Command::DiceProb(tree, comp, thresh) => {
@@ -145,8 +215,14 @@ impl RPN {
                     total += *weight;
                 }
 
-                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, acc / total) });
+                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, acc / total) }.into());
 
+                Ok(())
+            }
+            Command::DiceHistogram(v) => {
+                let distr = v.item.as_roll().distribution();
+                let expected = distr.expected_value();
+                println!("========\n{}expected value:{}\n========", distr.histogram(80), expected);
                 Ok(())
             }
             Command::UnitDef(name, val) => {
@@ -177,18 +253,30 @@ impl RPN {
         }
     }
 
+    fn format_uv(uv: &UV) -> String {
+        let mut out = String::new();
+
+        let value = &uv.value;
+        let unit = &uv.unit;
+
+        out.push_str(PComplex(value).to_string().as_str());
+        let u = format!("{}", unit);
+        if u.len() != 0 {
+            out.push(' ');
+            out.push_str(u.as_str());
+        }
+
+        out
+    }
+
     pub fn print_stack(&self) -> String {
         let mut out = String::new();
 
         for item in &self.stack {
-            let value = &item.value;
-            let unit = &item.unit;
-
-            out.push_str(PComplex(value).to_string().as_str());
-            let u = format!("{}", unit);
-            if u.len() != 0 {
-                out.push(' ');
-                out.push_str(u.as_str());
+            match item {
+                StackItem::Num(v) => out.push_str(&Self::format_uv(v)),
+                // TODO: fixed precision
+                StackItem::NumWithPercentile(v, percentile) => out.push_str(&format!("{} ({}th percentile)", Self::format_uv(v), percentile)),
             }
             out.push('\n');
         }
@@ -209,6 +297,7 @@ impl RPN {
                     crate::parser::Op::Times => Ok(l * r),
                     crate::parser::Op::Divide => (l / r).map_err(|x| EvalError::UnitError(x)),
                     crate::parser::Op::Pow => Ok(l.exp(r.value)),
+                    crate::parser::Op::Factorial => Err(EvalError::UnimplementedError)
                 }
             }
             Infix::Num(n) => Ok(n.item.as_uv()),
@@ -362,8 +451,8 @@ impl Function {
     fn eval(self, calc: &mut RPN) -> Result<(), EvalError> {
         match self {
             Function::Drop(n) => { let _ = calc.pop(n); Ok(()) },
-            Function::Duplicate => { let v = calc.pop_single()?; calc.stack.push(v.clone()); calc.stack.push(v); Ok(()) },
-            Function::Swap => { let mut items = calc.pop(2)?; items.reverse(); calc.stack.extend(items); Ok(()) },
+            Function::Duplicate => { let v = calc.pop_single_full()?; calc.stack.push(v.clone()); calc.stack.push(v); Ok(()) },
+            Function::Swap => { let mut items = calc.pop_full(2)?; items.reverse(); calc.stack.extend(items); Ok(()) },
             Function::Clear => { calc.stack.clear(); Ok(()) }
             Function::Clipboard => Err(EvalError::UnimplementedError),
             Function::PrettyPrint => {
@@ -449,8 +538,8 @@ impl Function {
                 let item = calc.stack.last().ok_or(EvalError::EmptyStack)?;
 
                 let mut out = String::new();
-                out.push_str(PComplex(&item.value).pretty_print(&mapping).as_str());
-                let u = format!("{}", item.unit);
+                out.push_str(PComplex(&item.b_uv()?.value).pretty_print(&mapping).as_str());
+                let u = format!("{}", item.b_uv()?.unit);
                 if u.len() != 0 {
                     out.push(' ');
                     out.push_str(u.as_str());
@@ -462,7 +551,7 @@ impl Function {
             }
             Function::VarGet(name) => {
                 match calc.vars.get(&name) {
-                    Some(v) => { calc.stack.push(v.clone()); Ok(()) }
+                    Some(v) => { calc.stack.push(v.clone().into()); Ok(()) }
                     None => Err(EvalError::VarNotFound(name))
                 }
             }
@@ -473,7 +562,7 @@ impl Function {
             }
             _ => {
                 let args = calc.pop(self.num_args().expect("you brought this on yourself"))?;
-                calc.stack.push(self.eval_normal(args, calc)?);
+                calc.stack.push(self.eval_normal(args, calc)?.into());
                 Ok(())
             }
         }
