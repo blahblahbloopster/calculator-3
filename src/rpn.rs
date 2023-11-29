@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::{Display, Formatter, Debug}};
+use std::{collections::HashMap, fmt::{Display, Formatter, Debug}, ops::Add};
 
 use rand::{rngs::StdRng, SeedableRng, prelude::Distribution};
 use regex::Regex;
@@ -168,7 +168,7 @@ impl RPN {
                     crate::parser::Op::Times => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); Ok(a * b) },
                     crate::parser::Op::Divide => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); a / b },
                     crate::parser::Op::Pow => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); Ok(a.exp(b.value)) },
-                    crate::parser::Op::Factorial => { let arg = &self.pop(1)?[0]; Ok(UV { unit: UnitTree::dimensionless(), value: (*(arg.value.real().clone().gamma().as_complex())).clone() }) }
+                    crate::parser::Op::Factorial => { let arg = &self.pop(1)?[0]; Ok(UV { unit: UnitTree::dimensionless(), value: (*(arg.value.real().clone().add(Float::with_val(1024, 1)).gamma().as_complex())).clone() }) }
                 }.map_err(|x| EvalError::UnitError(x))?;
 
                 self.stack.push(out.into());
