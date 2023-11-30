@@ -3,11 +3,12 @@ use std::{collections::HashMap, fmt::{Display, Formatter, Debug}, ops::Add};
 use rand::{rngs::StdRng, SeedableRng, prelude::Distribution};
 use regex::Regex;
 use rug::{Float, Complex, float::Constant::Pi, ops::Pow};
-use crate::{parser::{Command, Infix}, units::{UV, UnitTree, UVError, UnitHolder, ParsedUnit, UnitName}};
+use crate::{parser::{Command, Infix}, units::{UV, UnitTree, UVError, UnitHolder, ParsedUnit, UnitName}, context::UnitContext};
 
 pub struct RPN {
     pub prec: u32,
     pub units: UnitHolder,
+    pub context: UnitContext,
     pub stack: Vec<StackItem>,
     pub vars: HashMap<String, UV>,
     pub undo_checkpoints: Vec<UndoCheckpoint>,
@@ -79,12 +80,12 @@ impl From<UV> for StackItem {
 }
 
 impl RPN {
-    pub fn new(prec: u32, units: UnitHolder) -> Self {
+    pub fn new(prec: u32, units: UnitHolder, context: UnitContext) -> Self {
         let mut vars = HashMap::new();
         vars.insert("pi".to_string(), UV { value: Complex::with_val(prec, Pi), unit: UnitTree::dimensionless() });
         vars.insert("e".to_string(), UV { value: Complex::with_val(prec, 1).exp(), unit: UnitTree::dimensionless() });
 
-        RPN { prec, units, stack: vec![], vars, undo_checkpoints: vec![], rng: StdRng::from_entropy() }
+        RPN { prec, units, context, stack: vec![], vars, undo_checkpoints: vec![], rng: StdRng::from_entropy() }
     }
 
     fn undo_size(&self) -> usize {
@@ -379,7 +380,7 @@ pub enum Function {
     ASin, ACos, ATan, ATan2, ACot,
     Sqrt,
     Ln, Log10, Log2, LogB,
-    Drop(usize), Duplicate, Swap, Clear, Clipboard, PrettyPrint,
+    Drop(usize), Duplicate, Swap, Clear, Clipboard, PrettyPrint, Context,
     VarGet(String), VarSet(String)
 }
 
@@ -413,6 +414,7 @@ impl Function {
             Function::Clear => None,
             Function::Clipboard => None,
             Function::PrettyPrint => None,
+            Function::Context => None,
             Function::VarGet(_) => None,
             Function::VarSet(_) => None,
         }
@@ -560,6 +562,20 @@ impl Function {
                 calc.vars.insert(name, arg);
                 Ok(())
             }
+            Function::Context => {
+                let arg = match calc.stack.last() {
+                    Some(v) => v,
+                    None => return Err(EvalError::EmptyStack),
+                };
+
+                let found = calc.context.find(arg.clone().to_uv().unwrap() /* currently can't fail */, 5);
+                for item in found {
+                    println!("{item}")
+                }
+                println!();
+
+                Ok(())
+            }
             _ => {
                 let args = calc.pop(self.num_args().expect("you brought this on yourself"))?;
                 calc.stack.push(self.eval_normal(args, calc)?.into());
@@ -593,6 +609,7 @@ impl Function {
             "clear" => Some(Function::Clear),
             "clipboard" => Some(Function::Clipboard),
             "pretty" => Some(Function::PrettyPrint),
+            "context" => Some(Function::Context),
             _ => {
                 if inp.starts_with("=") {
                     Some(Function::VarSet(inp.strip_prefix("=").unwrap().to_string()))

@@ -132,3 +132,9 @@ arcsecond / arcsec: 1/60 arcmin
 rotation / rot: 2*pi rad
 
 *gee: 9.80665 m/s^2
+
+electronvolt / eV: 1.602176634e-19 J (prefixes)
+
+foodcalorie: 1000 scical
+
+astronomicalunit / AU: 149597870700 m

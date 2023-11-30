@@ -1,5 +1,6 @@
-use std::{fs::File, io::Read, collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell, env::{self, args}};
+use std::{collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell};
 
+use context::UnitContext;
 use dice::TaggedDiceRoll;
 use units::UnitHolder;
 use parser::{Command, Infix, Tag};
@@ -13,6 +14,7 @@ mod parser;
 mod rpn;
 mod units;
 mod dice;
+mod context;
 
 #[derive(Validator, Helper, Completer, Hinter)]
 struct Session {
@@ -293,10 +295,10 @@ fn main() {
         }
     }
     
-    let buf = include_str!("../units.txt");
-    let holder = UnitHolder::new(buf.to_string(), prec);
+    let holder = UnitHolder::new(include_str!("../units.txt"), prec);
+    let context = UnitContext::new(&holder, include_str!("../context.txt"));
 
-    let rpn = RPN::new(prec, holder);
+    let rpn = RPN::new(prec, holder, context);
     let session = Session { calculator: rpn };
     let mut editor = rustyline::Editor::new().unwrap();
     editor.set_helper(Some(session));

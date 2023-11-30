@@ -1,6 +1,5 @@
-use std::{fmt::{Display, Debug, format}, collections::HashMap, ops::{Mul, Div, Add, Neg, Sub}};
+use std::{fmt::{Display, Debug}, collections::HashMap, ops::{Mul, Div, Add, Neg, Sub}};
 
-use regex::Regex;
 use rug::{Float, Complex, ops::Pow};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -353,6 +352,29 @@ impl UV {
         let radians = unit_parser::unit("rad", holder).unwrap().unwrap();
         self.convert(radians).map(|x| x.value)
     }
+
+    pub fn metricify(self) -> UV {
+        let (coefficients, multiplier) = self.unit.metricify();
+        let new_unit = UnitTree::Product(coefficients.iter().map(|x| {
+            if *x.1 == 1 {
+                UnitTree::Base(x.0.clone())
+            } else if *x.1 == 0 {
+                UnitTree::dimensionless()
+            } else {
+                let mut out = vec![];
+                for _ in 0..x.1.abs() {
+                    out.push(UnitTree::Base(x.0.clone()));
+                }
+                if *x.1 > 0 {
+                    UnitTree::Product(out, None)
+                } else {
+                    UnitTree::Quotient(Box::new(UnitTree::dimensionless()), Box::new(UnitTree::Product(out, None)), None)
+                }
+            }
+        }).collect(), None);
+
+        UV { unit: new_unit, value: self.value * multiplier }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -374,7 +396,7 @@ impl UnitHolder {
         None
     }
 
-    pub fn new(inp: String, prec: u32) -> UnitHolder {
+    pub fn new(inp: &str, prec: u32) -> UnitHolder {
         let mut out = UnitHolder { units: vec![], prec };
         let mut duplicates = vec![];
         inp.lines().filter(|x| !(x.starts_with('#') || x.is_empty())).for_each(|x| {
@@ -474,7 +496,7 @@ peg::parser! {
             = $(digits() ("." digits())?)
         
         rule float(holder: &UnitHolder) -> Float
-            = _ v:$(decimal() ("e" float(holder))?) _ {? Ok(Float::with_val(holder.prec, Float::parse(v).or(Err("number format error"))?)) }
+            = _ v:$("-"? decimal() ("e" float(holder))?) _ {? Ok(Float::with_val(holder.prec, Float::parse(v).or(Err("number format error"))?)) }
             / _ "pi" _ { Float::with_val(holder.prec, rug::float::Constant::Pi) }
         
         rule coefficient(holder: &UnitHolder) -> Float = precedence! {

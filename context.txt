@@ -1,0 +1,579 @@
+# NOTE: virtually all of this data is taken from wikipedia's orders of magnitude pages
+
+# acceleration
+1.62 m/s^2 - $x moon gravity
+9.81 m/s^2 - $x earth gravity
+40 m/s^2 - $x high-G roller coaster
+49 m/s^2 - $x threshold for dizziness and fainting
+88 m/s^2 - $x fighter jet hard turn
+177 m/s^2 - $x physical damage to humans
+454 m/s^2 - $x John Stapp's record setting rocket sled run
+982 m/s^2 - $x car crash momentary acceleration
+2089 m/s^2 - $x Kenny Bräck's crash at the 2003 Chevy 500, the highest known survived acceleration
+304420 m/s^2 - $x handgun bullet acceleration
+3900000 m/s^2 - $x ultracentrifuge
+7e12 m/s^2 - $x neutron star surface gravity
+2.1e13 m/s^2 - $x LHC protons
+
+# anglular momentum
+7.9e-11 J*s - $x angular momentum of wristwatch second hand
+250 J*s - $x angular momentum of olympic hammer throw
+53000 J*s - $x angular momentum of large carousel
+2.308e29 J*s - $x moon angular momentum
+7.07e33 J*s - $x earth angular momentum
+2.661e40 J*s - $x earth orbital angular momentum
+1.676e41 J*s - $x sun angular momentum
+
+# area
+2.6e-70 m^2 - $x planck area
+6 um^2 - $x surface area of E. coli
+100 um^2 - $x surface area of a red blood cell
+8000 um^2 - $x cross sectional area of typical human hair
+55000 um^2 - $x area of a pixel
+40 mm^2 - $x area of hole punch
+290 mm^2 - $x area of US penny
+500 mm^2 - $x area of a postage stamp
+4600 mm^2 - $x area of a credit card
+10000 mm^2 - $x area of an index card
+62370 mm^2 - $x area of a sheet of A4 paper
+1.73 m^2 - $x human body surface area
+15 m^2 - $x parking space area
+162 m^2 - $x volleyball court
+261 m^2 - $x tennis court area
+437 m^2 - $x basketball court
+1250 m^2 - $x area of olympic swimming pool
+5400 m^2 - $x area of american football field
+7140 m^2 - $x area of soccer field
+22100 m^2 - $x area of manhattan block
+53000 m^2 - $x area of the base of the great pyramid of giza
+59.5 km^2 - $x area of manhattan
+490000 m^2 - $x area of the vatican
+105 km^2 - $x area of paris inner city
+110 km^2 - $x area of disney world
+1100 km^2 - $x area of hong kong
+1289 km^2 - $x area of los angeles
+2188 km^2 - $x area of tokyo
+11000 km^2 - $x area of jamaica
+100000 km^2 - $x area of south korea
+377900 km^2 - $x area of japan
+510000 km^2 - $x area of turkey
+1 Mm^2 - $x area of egypt
+2 Mm^2 - $x area of mexico
+5 Mm^2 - $x greatest extent of the roman empire
+7.74 Mm^2 - $x area of australia
+8.5 Mm^2 - $x area of brazil
+9.5 Mm^2 - $x area of the US or china
+10 Mm^2 - $x area of canada
+14 Mm^2 - $x area of antarctica
+17 Mm^2 - $x area of russia
+30 Mm^2 - $x area of africa
+35.5 Mm^2 - $x greatest extent of the british empire
+38 Mm^2 - $x surface area of the moon
+77 Mm^2 - $x area of atlantic ocean
+144 Mm^2 - $x surface area of mars
+150 Mm^2 - $x land area of earth
+156 Mm^2 - $x area of pacific ocean
+510 Mm^2 - $x surface area of earth
+7600 Mm^2 - $x surface area of neptune
+43000 Mm^2 - $x surface area of saturn
+61000 Mm^2 - $x surface area of jupiter
+6.1 Gm^2 - $x surface area of sun
+700000 Em^2 - $x area of the milky way's disk
+
+# bit rate
+5.6 bit/sec - $x skilled morse code operator bitrate
+8 kb/s - $x low quality telephone bitrate
+56 kb/s - $x telephone modem bitrate
+1.4112e6 bit/s - $x CD audio bitrate
+8e6 bit/s - $x DVD video bitrate
+10 Mb/s - $x 10 Mbps ethernet bitrate
+100 MB/s - $x 100 Mbps ethernet bitrate
+4.8e8 bit/s - $x USB 2.0 bitrate
+1 Gb/s - $x gigabit ethernet bitrate
+5e9 bit/s - $x USB 3.0 SuperSpeed bitrate
+6 Gb/s - $x SATA 6Gb/s bitrate
+10 Gb/s - $x 10 gigabit ethernet bitrate
+10 Gb/s - $x USB 3.1 SuperSpeed bitrate
+40 Gb/s - $x 40 gigabit ethernet bitrate
+80 Gb/s - $x PCIe gen 2 x16 bitrate
+100 Gb/s - $x 100 gigabit ethernet
+128 Gb/s - $x PCIe gen 3 x16 bitrate
+256 Gb/s - $x PCIe gen 4 x16 bitrate
+512 Gb/s - $x PCIe gen 5 x16 bitrate
+1.28 Tb/s - $x SEA-ME-WE 4 communications cable bitrate
+3.84 Tb/s - $x I-ME-WE communications cable bitrate
+
+# current (FINISH ME)
+#160 zA - $x current of one electron per second
+#10 uA - $x minimum current to cause death when applied directly to heart
+#700 uA - $x hearing aid current consumption
+#10 mA - $x current threshold for being able to let go of an electrocution source
+#290 mA - $x television current consumption at 120V
+
+# data
+7 bit - $ ascii characters
+8 bit - $ bytes
+32 bit - $x IPv4 address data
+128 bit - $x IPv6 address data
+4074 bit - $x MPEG frame data
+64 KiB - $x RAM capcity of commodore 64
+4147200 bit - $x uncompressed NTSC DVD frame data
+5 MiB - $x data capacity of the complete works of shakespeare
+75 Mb - $x data capacity of a phone book
+650 MiB - $x data capacity of a CD
+6.4e9 bit - $x data capacity of the human genome
+4 GiB - $x addressable space on a 32 bit system
+4.7 GB - $x single sided single layer DVD data capacity
+25 GB - $x single sided single layer Blu-ray data capacity
+128 GiB - $x data capacity of the largest known genome, polychaos dubium
+4 PiB - $x addressable space on AMD64
+10 PiB - $x data in US library of congress collection
+0.36 ZB - $x data capacity of 1 gram of DNA
+
+# energy
+1.6e-24 J - $x energy of microwave oven photon
+0.9 eV - $x energy of hydrogen bond
+1.6 eV - $x energy of red photon
+3.1 eV - $x energy of blue photon
+6 eV - $x energy of a covalent bond
+1.44 MeV - $x energy of two protons fusing into deuterium
+215 MeV - $x energy of a single U-235 fission event
+1.6e-7 J - $x kinetic energy of a flying mosquito
+6.5 TeV - $x energy of a single proton in the LHC in 2015
+1 J - $x energy of a particularly small apple falling 1 meter
+1 J - $x energy to heat 1 gram of air by 1 degree C
+50 J - $x energy of the oh-my-god particle
+200 J - $x energy given for defibrillation
+300 J - $x kinetic energy of average human jumping as high as possible
+330 J - $x energy to melt 1 gram of ice
+400 J - $x energy of fast thrown javelin
+1400 J - $x energy received by 1 m^2 of the earth's surface from the sun every second
+1800 J - $x energy of a 5.56x45mm NATO round fired from an M16
+2300 J - $x energy to vaporize 1 gram of water to steam
+4184 J - $x energy released by 1 gram of TNT
+7000 J - $x energy of elephant gun projectile
+9000 J - $x energy in AA battery
+45000 J - $x energy released by 1 gram of gasoline
+50000 J - $x kinetic energy of 1 gram moving at orbital velocity
+1e6 J - $x kinetic energy of a large car speeding on the highway
+1.2e6 J - $x kinetic energy of a snickers bar
+4184000 J - $x kinetic energy of 1 kilogram of TNT
+2000 foodcalorie - $x recommended daily calorie intake
+4e7 J - $x energy from combustion of 1 m^3 of natural gas
+6.3e7 J - $x energy to get 1 kg to escape velocity from earth, ignoring atmosphere
+5e9 J - $x energy in a lightning bolt
+2e9 J - $x energy in typical gas tank
+4.184e9 J - $x energy in 1 ton of TNT
+1.9e10 J - $x energy of an A380 at crusing speed
+4.6e10 J - $x energy of the Massive Ordnance Air Blast
+8.8e10 J - $x energy released in the fission of 1 gram of U-235
+9e10 J - $x mass energy in one milligram of matter
+2.4e11 J - $x average human lifetime calorie consumption
+4e12 J - $x electricity produced by 20kg of uranium fuel
+1.2e13 J - $x ISS kinetic energy
+6.3e13 J - $x yield of Little Boy, dropped on Hiroshima
+8.8e13 J - $x yeild of Fat Man, dropped on Nagasaki
+9e13 J - $x mass energy of 1 gram of matter
+3.75e14 J - $x Chelyabinsk meteor energy release
+4.184e15 J - $ megatons of TNT
+1e16 J - $x energy to form Meteor Crater
+9e16 J - $x mass energy of 1 kg of matter
+1e17 J - $x magnitude 9.1-9.3 2004 indian ocean earthquake
+1.7e17 J - $x energy from the sun that strikes the earth every second
+2.1e17 J - $x yield of Tsar Bomba, the largest nuclear weapon tested
+8e17 J - $x energy released in the 1883 krakatoa eruption
+1.2e19 J - $x global nuclear arsenal energy
+6.9e21 J - $x estimated energy in global natural gas reserves
+7.9e21 J - $x estimated energy in global petroleum reserves
+1.5e22 J - $x energy from the sun that strikes earth every day
+2.4e22 J - $x estimated energy in global coal reserves
+2.2e23 J - $x estimated energy in global U-238 reserves with fast reactors
+3e23 J - $x KT impact
+5.5e25 J - $x energy from sun that strikes the earth every year
+10e25 J - $x extremely large solar flare
+3.8e26 J - $x energy the sun outputs every second
+3e27 J - $x energy to vaporize all water on earth
+3.8e28 J - $x the moon's kinetic energy around the earth
+2.1e29 J - $x the earth's rotational kinetic energy
+1.8e30 J - $x gravitational binding energy of mercury
+3.3e31 J - $x energy the sun outputs every day
+2e32 J - $x graviational binding energy of earth
+2.7e32 J - $x earth's kinetic energy around the sun
+1.2e32 J - $x energy the sun outputs every year
+6.6e39 J - $x mass energy of the moon
+2.276e41 J - $x gravitational binding energy of the sun
+5.4e41 J - $x mass energy of earth
+5e43 J - $x gamma ray energy released in a gamma ray burst
+1e44 J - $x energy released in a supernova
+1.2e44 J - $x the sun's lifetime output energy
+1.8e47 J - $x mass energy of the sun
+1.2e48 J - $x the most energetic black hole merger observed
+
+# force
+8.9 qN - $x weight of an electron
+16 rN - $x weight of a hydrogen atom
+4 pN - $x force to break a hydrogen bond
+1.7 nN - $x force to break a typical covalent bond
+1.4 N - $x weight of a smartphone
+2.5 N - $x ion engine thrust
+50 N - $x force to break an eggshell
+720 N - $x force of a human bite
+9 kN - $x alligator bite
+18 kN - $x great white shark bite
+100 kN - $x force applied by seatbelt and airbag to a passenger in a car crash
+569 kN - $x force of GE90 turbofan engine
+890 kN - $x force of a diesel-electric locomotive
+1.8 MN - $x RS-25 takeoff thrust
+35 MN - $x thrust of Saturn V takeoff
+200 EN - $x gravitational attraction force between earth and the moon
+35 ZN - $x gravitational attraction force between earth and the sun
+450 RN - $x gravitational attraction force between the milky way and andromeda
+
+# frequency
+31.71 fHz - $ times per million years
+31.71 pHz - $ times per millenium
+317.1 pHz - $ times per century
+3.171 nHz - $ times per decade
+31.71 nHz - $ times per year
+380.5 nHz - $ times per month
+1.653 uHz - $ times per week
+11.57 uHz - $ times per day
+277.8 uHz - $ times per hour
+16.667 mHz - $ times per minute
+10 Hz - $x car engine at idle
+20 Hz - $x lower bound of human hearing
+60 Hz - $x mains power frequency in the US
+100 Hz - $x car engine at redline
+20 kHz - $x upper bound of human hearing
+44.1 kHz - $x typical audio sampling frequency
+13.56 MHz - $x NFC communications frequency
+2.4 GHz - $x microwave oven frequency
+400 THz - $x red light frequency
+790 THz - $x blue light frequency
+
+# TODO: illuminance and luminance
+
+# length
+0.0000162 qm - $x planck length
+1 am - $x sensitivity of LIGO
+1700 am - $x proton diameter
+11.7 fm - $x uranium nucleus diameter
+56 pm - $x helium atom diameter
+154 pm - $x typical covalent bond length
+280 pm - $x average length of water molecule
+500 pm - $x protein alpha helix width
+1 nm - $x carbon nanotube diameter
+2 nm - $x DNA helix diameter
+8 nm - $x cell membrane thickness
+13.5 nm - $x wavelength of extreme ultraviolet used in EUV lithography
+45 nm - $x distance between transistor gates on TSMC's N3 node
+120 nm - $x width of HIV
+400 nm - $x wavelength of blue light
+700 nm - $x wavelength of red light
+2 um - $x length of bacteria
+4 um - $x diameter of spider silk
+7 um - $x length of red blood cell
+10 um - $x width of transistors in intel 4004
+12 um - $x width of acrylic fiber
+100 um - $x width of human hair
+# TODO: check hair against area, add pixel
+20 mm - $x width of a finger
+86 mm - $x long edge of a credit card
+74 mm - $x diameter of a baseball
+120 mm - $x diameter of a CD
+2.72 m - $x the height of Robert Wadlow, the tallest known human
+8.38 m - $x the length of a london bus
+33 m - $x the length of the longest known blue whale
+52 m - $x the height of niagra falls
+93.47 m - $x the height of the statue of liberty
+105 m - $x the length of a soccer field
+137 m - $x the height of the great pyramid of giza
+300 m - $x the height of the eiffel tower
+2.3 km - $x the length of the three gorges dam
+8.848 km - $x the height of mount everest
+10.9 km - $x the depth of challenger deep
+27 km - $x the circumference of the LHC
+42.195 km - $x the length of a marathon
+100 km - $x the distance to the kármán line, the edge of space
+163 km - $x the length of the suez canal
+974.6 km - $x the diameter of dwarf planet ceres
+2.38 Mm - $x the diameter of pluto
+3.48 Mm - $x the diameter of the moon
+6.371 Mm - $x the mean radius of earth
+6.4 Mm - $x the length of the great wall of china
+6.6 Mm - $x the length of the nile
+9.288 Mm - $x the length of the trans-siberian railway, the longest in the world
+12.756 Mm - $x the equatorial diameter of earth
+20.004 Mm - $x the distance between the north and south poles along the earth's surface
+40.075 Mm - $x the circumference of earth
+142.984 Mm - $x the diameter of jupiter
+299.792 Mm - $ light seconds
+384.4 Mm - $x the distance to the moon
+1.39 Gm - $x the diameter of the sun
+1 c*min - $ light minutes
+1 AU - $ astronomical units
+1.4 Tm - $x the distance from the sun to saturn
+2 Tm - $x diameter of very large stars
+5.9 Tm - $x the distance from the sun to pluto
+135.08191033 AU - $x the distance from the sun to Voyager 1 as of November 28th 2023
+62.03 Tm - $x the diameter of the event horizon of the largest known black hole
+200 Tm - $x the length of all the DNA in an adult human
+7.5 Tm - $x the approximate outer boundary of the Oort cloud
+1 ly - $ light years
+39.9 Pm - $x distance to the nearest star, proxima centauri
+615 Pm - $x the radius of earth's radio bubble
+9.46 Em - $x the thickness of the milky way
+1.9 Zm - $x the diameter of the milky way
+24 Zm - $x the distance to andromeda
+50 Zm - $x the diameter of the local group of galaxies
+2.19 Ym - $x the diameter of the local supercluster
+9.461 Ym - $x the diameter of the pisces-cetus supercluster complex
+870 Ym - $x the diameter of the observable universe
+
+# magnetic field
+500 fT - $x the magnetic field produced by a human brain
+300 nT - $x the magnetic field from residential electric lines from 15 meters away
+2 uT - $x the magnetic field from high power transmission electric lines from 30 meters away
+6 uT - $x the magnetic field produced by a microwave oven from 30cm away
+24 uT - $x the magnetic field from magnetic tape at the tape head
+31 uT - $x the field strength of earth's magnetic field at the equator
+58 uT - $x the field strength of earth's magnetic field at 50d latitude
+5 mT - $x the magnetic field of a refrigerator magnet
+1.25 T - $x the field strength of a neodynium magnet
+5 T - $x the field strength of typical MRI machines
+16 T - $x frog levitating magnetic field
+45.22 T - $x record continuous magnetic field strength
+
+# mass
+9.11e-31 kg - $x electron mass
+1.661e-27 kg - $ daltons
+1.673e-27 kg - $x proton mass
+1.674e-27 kg - $x hydrogen atom mass
+3e-26 kg - $x water molecule mass
+5.5e-23 kg - $x typical protein mass
+1e-18 kg - $x HIV mass
+4.7e-18 kg - $x mass of E. coli genome
+1e-15 kg - $x E. coli mass
+6e-15 kg - $x mass of DNA in a human cell
+1 ng - $x mass of an average human cell
+7e-8 kg - $x mass of an eyelash
+2.5e-6 kg - $x mass of a grain of sand
+2e-5 kg - $x housefly mass
+1 g - mass of $ cm^3 of water
+30 g - $x mass of adult mouse
+150 g - $x mass of an orange
+0.145 kg - $x mass of a baseball
+4.5 kg - $x mass of a housecat
+150 kg - $x mass of a lion
+300 kg - $x mass of a grand piano
+1500 kg - $x mass of a typical car
+3000 kg - $x mass of an elephant
+27000 kg - $x mass of ENIAC
+40000 kg - $x mass of loaded semi truck
+63 uston - $x mass of M1A1 abrams
+7.3e4 kg - $x mass of argentinosaurus, the largest dinosaur
+1.8e5 kg - $x mass of the heaviest known blue whale
+4.2e5 kg - $x mass of the ISS
+6e5 kg - $x the mass of the Antonov An-225 Mriya before the russians burned it
+2e6 kg - $x the launch mass of the space shuttle
+7.8e6 kg - $x the mass of a Virginia-class attack submarine
+6e9 kg - $x the mass of the great pyramid of giza
+6e10 kg - $x the mass of concrete in the three gorges dam
+6e11 kg - $x the mass of the total human population
+9.4e20 kg - $x the mass of ceres, a dwarf planet
+1.4e21 kg - $x the mass of earth's oceans
+1.5e21 kg - $x the mass of pluto's moon charon
+3.2e21 kg - $x the mass of the asteroid belt
+1.3e22 kg - $x the mass of pluto
+7.3e22 kg - $x the mass of the moon
+1.3e23 kg - $x the mass of titan
+3.3e23 kg - $x the mass of mercury
+6.4e23 kg - $x the mass of mars
+6e24 kg - $x the mass of earth
+5.7e26 kg - $x the mass of saturn
+1.9e27 kg - $x the mass of jupiter
+2e30 kg - $x the mass of the sun
+# TODO: more space stuff
+
+# molar concentration
+1.66 ymol/L - $ particles per liter
+2 fmol/L - $x the concentration of bacteria in surface seawater
+8 pmol/L - $x the concentration of red blood cells in blood
+44.7 mmol/L - $x the concentration of an ideal gas at 0 degrees C and atmospheric pressure
+
+# power
+1e-16 W - $x the power of GPS signals at the earth's surface
+2e-16 W - $x the minimum power detectable by the human eye
+2.5e-15 W - $x the minimum power for a good FM receiver to get a good signal
+1e-12 W - $x a human cell's power consumption
+1e-6 W - $x the power consumption of a wristwatch
+7e-2 W - $x the antenna power in a typical wifi router
+4 W - $x the power consumption of an incandescent night light
+30 W - $x the power consumption of a human brain
+60 W - $x the power consumption of an incandescent light bulb
+100 W - $x the power consumption of a typical human at rest
+120 W - $x the power output of a 1 square meter solar panel
+200 W - $x stationary bicycle average power output
+300 W - $x RTX 4080 peak power consumption
+500 W - $x output power of a human working hard
+7.457e2 W - $ horsepower
+9.09e2 W - $x the peak output power of a non-athlete human on a bicycle
+1100 W - $x the power output of a microwave oven
+1500 W - $x the power consumption of an electric kettle in the US
+2000 W - $x the short time power output of a skilled athlete
+1.4e4 W - $x the average power consumption of an EV on the highway
+4.5e5 W - $x the power output of a semi truck engine
+1.3e6 W - $x the power output of the rolls royce merlin
+2e6 W - $x the power of a typical wind turbine
+2.5e6 W - $x the peak power output of a blue whale
+3e6 W - $x the output power of a diesel locomotive
+7e6 W - $x the output power of a top fuel dragster
+2.6e7 W - $x the power output of a los angeles-class submarine's reactor
+7.5e7 W - $x the power output of a GE90 turbofan engine
+1.9e8 W - $x the peak power output of a nimitz-class carrier
+2.074e9 W - $x the peak power output of the hoover dam
+3.4e9 W - $x the 2017 estimated bitcoin power consumption
+4.116e9 W - $x the capacity of the largest coal fired power plant
+8.21e9 W - $x the capacity of the largest nuclear plant
+1.17e10 W - $x the power output of the space shuttle and SRBs at launch
+1.83e10 W - $x the power output of the three gorges dam
+5.027e10 W - $x the peak power consumption of california (2018)
+1.016e11 W - $x the peak power consumption of france (2012)
+1.66e11 W - $x the power consumption of the Saturn V's first stage
+7e11 W - $x the resting power consumption of 7 billion humans
+3.34e12 W - $x the US's average power consumption, including gas (2005)
+1.91e13 W - $x the average total power consumption of the human world
+1.4e14 W - $x the average power production of all photosynthesis on earth
+2.9e14 W - $x the peak power output of the Z pulsed power facility
+4.6e14 W - $x the earth's net heating
+5e16 W - $x the estimated power output of a kardashev type I civilization
+5.3e24 W - $x the peak power output of the tsar bomba
+5e25 W - $x the estimated power output of a kardashev type II civilization
+3.846e26 W - $x the luminosity of the sun
+4e34 W - $x the estimated power output of a kardashev type III civilization
+5e36 W - $x the luminosity of the milky way
+2.2e38 W - $x the luminosity of a particularly large supernova
+1e39 W - $x the luminosity of a quasar
+1e41 W - $x the luminosity of the biggest quasars
+1e42 W - $x the luminosity of the local supercluster
+3e42 W - $x the luminosity of a gamma ray burst
+
+# pressure
+10 aPa - $x pressure in intergalactic space
+5 fPa - $x pressure in interstellar space
+1 pPa - $x lowest pressures attained in the lab
+40 pPa - $x the pressure on the moon during the day
+100 pPa - $x upper bound on extremely high vacuum
+300 pPa - $x approximate pressure on the moon during the night
+100 nPa - $x upper bound on ultra high vacuum
+10 uPa - $x radiation pressure on a perfect mirror from the sun at 1 AU
+20 uPa - $x the threshold pressure for human hearing
+100 mPa - $x upper bound on high vacuum
+1 Pa - $x the pressure from a US dollar bill resting flat
+10 Pa - the pressure from $ millimeters of water
+86 Pa - $x the pressure of a US penny
+100 Pa - $x the pressure of a strong breeze
+200 Pa - $x the pressure threshold of pain for human hearing
+300 Pa - $x the lung pressure delta during normal breathing
+400 Pa - $x the atmosphere of mars
+5 kPa - $x the pressure to break glass
+9.8 kPa - $x the lung pressure most humans can exert
+10 kPa - the pressure of $ meters of water
+34 kPa - $x the overpressure to collapse most buildings
+34 kPa - $x the pressure at the top of mount everest
+75 kPa - $x the minimum airplane cabin pressure
+101.325 kPa - $ atmospheres
+60 psi - $x bicycle tire pressure
+300 kPa - $x garden hoze pressure
+500 kPa - $x champagne bottle pressure
+800 kPa - $x truck tire pressure
+1 MPa - $x steam locomotive boiler pressure
+1.1 MPa - $x pressure from a human bite
+5 MPa - $x estimated maximum pressure of seawolf class
+15 MPa - $x pressure washer pressure
+15.5 MPa - $x nuclear reactor coolant pressure
+21 MPa - $x pressure of scuba air tanks
+40 MPa - $x pressure at the depth of the titanic
+150 MPa - $x chamber pressure of a pistol
+110 MPa - $x water pressure in challenger deep
+400 MPa - $x .50 BMG chamber pressure
+300 MPa - $x waterjet cutter pressure
+1.5 GPa - $x tensile strength of inconel 625
+18 GPa - $x pressure of first commercially successful diamon synthesis
+69 GPa - $x highest water jet pressure in lab
+96 GPa - $x pressure to form metallic oxygen
+100 GPa - $x tensile strength of carbon nanotubes
+360 GPa - $x the pressure in earth's core
+5 TPa - $x the pressure achieved by the national ignition facility ICF experiment
+540 TPa - $x the pressure in Ivy Mike detonation
+6.5 PPa - $x the pressure in W80 detonation
+25 PPa - $x the pressure in the sun's core
+
+# TODO radiation
+
+# speed
+1.4e-14 m/s - $x crystal growth in cave of the grystals
+1e-13 m/s - $x erosion rate of bedrock
+4.12e-12 m/s - $x growth rate of a stalactite
+1.5e-9 m/s - $x the speed of continental drift
+1.3e-9 m/s - $x the speed the moon is drifting away from earth
+4.8e-9 m/s - $x the average human hair growth speed
+1.02e-5 m/s - $x the speed of a 7cm hour hand on a 12 hour clock
+1.4e-5 m/s - $x the speed of bamboo growth
+4e-4 m/s - $x the speed of a fast glacier
+6e-4 m/s - $x the speed of the fastest swimming bacteria
+0.00275 m/s - $x the speed of the world record fastest snail
+0.0476 m/s - $x the speed of a cassette tape
+0.08 m/s - $x the top speed of a sloth
+1.2 m/s - $x the speed of nerve impulses in the brain
+1.25 m/s - $x an average walking speed
+2.39 m/s - $x world record 50m freestyle swim
+5.78 m/s - $x world record marathon
+6.5 m/s - $x comfortable bicyling speed
+10.438 m/s - $x usain bolt's average speed on the 100m sprint
+12.42 m/s - $x usain bolt's top speed
+14 m/s - $x road race cyclist speed
+17 m/s - $x racehorse speed
+30 m/s - $x freeway speed
+30 m/s - $x cheetah sprint
+40 m/s - $x top speed of a local service train
+54 m/s - $x human terminal velocity when face down
+67 m/s - $x the speed of the world's fastest roller coaster
+90 m/s - $x the top speed of the peregrine falcon in a dive
+103.5 m/s - $x the formula one record speed
+120 m/s - $x the speed of motor neuron impulses
+124.219 m/s - $x the maximum speed of the fastest production car
+150.6 m/s - $x the maximum speed of a top fuel dragster
+250 m/s - $x the cruise speed of a jet airliner
+314 m/s - $x the top speed of WWII era aircraft
+320 m/s - $x the speed of a .22 LR bullet
+340.3 m/s - mach $ at sea level
+344.77 m/s - $x ThrustSSC's land speed record
+428 m/s - $x the bell X-1's max speed
+464 m/s - $x the speed of earth's rotation at the equator
+603 m/s - $x the speed of the concorde
+975 m/s - $x the speed of a rifle round
+981 m/s - $x the speed of the Lockheed SR-71 Blackbird
+1500 m/s - $x the speed of sound in water
+2019 m/s - $x the speed of the X-15
+2375 m/s - $x escape velocity of the moon
+2885 m/s - $x the speed of the fastest rocket sled
+3373 m/s - $x the speed of the X-43 hypersonic test aircraft
+7700 m/s - $x LEO orbital velocity
+7777 m/s - $x detcord detonation speed
+10600 m/s - $x the projected detonation speed of octanitrocubane
+11107 m/s - $x Apollo 10's reentry speed
+11200 m/s - $x earth escape velocity
+16210 m/s - $x the speed of New Horizons when leaving earth
+17000 m/s - $x the speed of Voyager 1 when it exited the solar system
+29800 m/s - $x earth's orbital velocity
+47800 m/s - $x Galileo reentry speed
+66000 m/s - $x the lower speed bound of the steel plate flug by Plumbob Pascal-B
+192000 m/s - $x planned top speed of Parker Solar Probe
+200000 m/s - $x orbital speed of the solar system in the milky way
+445000 m/s - $x the implosion speed of a capsule in the National Ignition Facility
+617700 m/s - $x escape velocity from the sun's surface
+100000000 m/s - $x the speed of the return stroke of lightning
+124000000 m/s - $x the speed of light in diamond
+150000000 m/s - $x the escape velocity of a neutron star
+1 c - $x the speed of light
