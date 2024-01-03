@@ -218,6 +218,21 @@ impl Color {
     }
 }
 
+impl Session {
+    fn highlight_once<'l>(&self, line: &'l str, pos: usize) -> Option<String> {
+        let _ = pos;
+        let parsed = rpn_parser::commands(line, &self.calculator);
+        match parsed {
+            Ok(v) => {
+                Some(Color::highlight(&v, line))
+            }
+            Err(_) => {
+                None
+            }
+        }
+    }
+}
+
 impl Highlighter for Session {
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> std::borrow::Cow<'l, str> {
         let _ = pos;
@@ -227,19 +242,21 @@ impl Highlighter for Session {
                 Color::highlight(&v, line)
             }
             Err(_) => {
-                let mut out = line.clone().to_string();
+                let mut out = line.to_string();
                 let mut popped = String::new();
                 loop {
                     match out.pop() {
-                        Some(v) => { popped.push(v) }
+                        Some(v) => { popped.insert(0, v) }
                         None => return std::borrow::Cow::Owned(line.to_string())
                     }
-                    let h = self.highlight(out.as_str(), pos).to_string();
-                    if h == out {
-                        continue;
+                    let h = self.highlight_once(out.as_str(), pos);
+                    match h.clone() {
+                        Some(v) => {
+                            let style = ansi_term::Color::Red.reverse();
+                            return std::borrow::Cow::Owned(v + &style.prefix().to_string() + &popped + &style.suffix().to_string());        
+                        }
+                        None => {}
                     }
-                    let style = ansi_term::Color::Red.reverse();
-                    return std::borrow::Cow::Owned(h + &style.prefix().to_string() + &popped + &style.suffix().to_string());
                 }
             }
         };
