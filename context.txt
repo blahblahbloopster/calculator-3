@@ -311,11 +311,11 @@
 384.4 Mm - $x the distance to the moon
 1.39 Gm - $x the diameter of the sun
 1 c*min - $ light minutes
-1 AU - $ astronomical units
+1 au - $ astronomical units
 1.4 Tm - $x the distance from the sun to saturn
 2 Tm - $x diameter of very large stars
 5.9 Tm - $x the distance from the sun to pluto
-135.08191033 AU - $x the distance from the sun to Voyager 1 as of November 28th 2023
+135.08191033 au - $x the distance from the sun to Voyager 1 as of November 28th 2023
 62.03 Tm - $x the diameter of the event horizon of the largest known black hole
 200 Tm - $x the length of all the DNA in an adult human
 7.5 Tm - $x the approximate outer boundary of the Oort cloud

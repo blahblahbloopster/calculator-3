@@ -5,7 +5,7 @@ use dice::TaggedDiceRoll;
 use units::UnitHolder;
 use parser::{Command, Infix, Tag};
 use rpn::RPN;
-use rustyline::{highlight::Highlighter, error::ReadlineError, ConditionalEventHandler, Cmd, EventHandler, KeyEvent, Editor};
+use rustyline::{highlight::Highlighter, error::ReadlineError, ConditionalEventHandler, Cmd, EventHandler, KeyEvent, Editor, Modifiers};
 use rustyline_derive::{Completer, Helper, Validator, Hinter};
 
 use crate::parser::rpn_parser;
@@ -117,11 +117,11 @@ impl Color {
 
     fn dice_color(expr: &Tag<TaggedDiceRoll>, out: &mut ModifiableString) {
         match &expr.item {
-            TaggedDiceRoll::Simple(d, num) => {
+            TaggedDiceRoll::Simple(_, num) => {
                 Color::pnt(Color::Number, num, out)
             }
             TaggedDiceRoll::Constant(n) => Color::pnt(Color::Number, n, out),
-            TaggedDiceRoll::Advantage { l_paren, roll, n, r_paren } => {
+            TaggedDiceRoll::Advantage { l_paren: _, roll, n: _, r_paren: _ } => {
                 Self::dice_color(roll, out)
             }
             TaggedDiceRoll::Sum(a, op, b) => {
@@ -143,11 +143,6 @@ impl Color {
                 Color::pnt(Color::Operator, n, out);
                 Self::dice_color(v, out)
             }
-            
-            // DiceInfix::Roll(num) => Color::pnt(Color::Number, num, out),
-            // DiceInfix::Multi(k, inner) => { Color::pnt(Color::Operator, k, out); Color::dice_color(inner, out) }
-            // DiceInfix::Multiply(k, inner) => { Color::pnt(Color::Number, k, out); Color::dice_color(inner, out) }
-            // DiceInfix::Advantage(_n, k) => { Color::dice_color(k, out) }
         }
     }
 
@@ -155,8 +150,6 @@ impl Color {
         let color = match &c.item {
             Command::Number(_) => Color::Number,
             Command::Operation(_) => Color::Operator,
-            // Command::VarAssign(_) => Color::Variable,
-            // Command::VarAccess(_) => Color::Variable,
             Command::Infix(expr) => {
                 Color::infix_color(expr, out);
                 return;
@@ -269,10 +262,10 @@ impl Highlighter for Session {
     }
 }
 
-struct Handler {
+struct UndoHandler {
     undo: Arc<Mutex<UnsafeCell<bool>>>
 }
-impl ConditionalEventHandler for Handler {
+impl ConditionalEventHandler for UndoHandler {
     fn handle(
             &self,
             _evt: &rustyline::Event,
@@ -280,19 +273,29 @@ impl ConditionalEventHandler for Handler {
             _positive: bool,
             _ctx: &rustyline::EventContext,
         ) -> Option<rustyline::Cmd> {
-            // println!("\n\n\n\n\naiowjafioeiojfjioe\n\n\n\n\n");
-            // Some(Cmd::Undo(1))
-            // let v = self.undo.lock().unwrap();
             *self.undo.lock().unwrap().get_mut() = true;
             Some(Cmd::Interrupt)
     }
 }
 
+struct QuoteCompleteHandler {
+}
+impl ConditionalEventHandler for QuoteCompleteHandler {
+    fn handle(
+            &self,
+            evt: &rustyline::Event,
+            _n: rustyline::RepeatCount,
+            _positive: bool,
+            _ctx: &rustyline::EventContext,
+        ) -> Option<rustyline::Cmd> {
+            // unsafe {
+            //     let editor = &mut (*(self.editor as *mut Editor<Session>));
+            // }
+            Some(Cmd::Insert(1, "''".to_string()))
+            // Some(Cmd::Replace(rustyline::Movement::ForwardChar(1), Some("''".to_string())))
+    }
+}
 fn main() {
-    // let roll = DiceRoll::Advantage(Box::new(DiceRoll::Simple(1..=20)), 50);
-    // println!("{}", roll.distribution().histogram(80));
-    // exit(0);
-
     let mut r1: Editor<()> = Editor::new().unwrap();
 
     let prec: u32;
@@ -323,8 +326,14 @@ fn main() {
     let undo = Arc::new(Mutex::new(UnsafeCell::new(false)));
     editor.bind_sequence(
         KeyEvent::ctrl('z'),
-        EventHandler::Conditional(Box::new(Handler { undo: Arc::clone(&undo) })),
+        EventHandler::Conditional(Box::new(UndoHandler { undo: Arc::clone(&undo) })),
     );
+
+    // WIP
+    // editor.bind_sequence(
+    //     KeyEvent::new('\'', Modifiers::empty()),
+    //     EventHandler::Conditional(Box::new(QuoteCompleteHandler {})),
+    // );
 
     loop {
         println!("{}", editor.helper().unwrap().calculator.print_stack());

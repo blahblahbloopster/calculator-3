@@ -438,7 +438,7 @@ impl Function {
             Function::ASin => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.asin() }),
             Function::ACos => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.acos() }),
             Function::ATan => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.atan() }),
-            Function::ACot => Err(EvalError::UnimplementedError),
+            Function::ACot => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.recip().atan() }),
             Function::Sqrt => Ok(arg.exp(Complex::with_val(calc.prec, 0.5))),
             Function::Ln => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() }),
             Function::Log10 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.log10() }),

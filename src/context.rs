@@ -11,7 +11,11 @@ impl ContextItem {
     pub fn new(holder: &UnitHolder, line: &str) -> ContextItem {
         let (num, format) = line.split_once(" - ").unwrap();
         let (value, unit) = num.split_once(" ").unwrap();
-        let uv = UV { unit: holder.parse(unit).unwrap(), value: Complex::with_val(1024, Complex::parse(value).unwrap()) };
+        let un = match holder.parse(unit) {
+            Some(v) => v,
+            None => panic!("failed to parse context item unit '{line}'"),
+        };
+        let uv = UV { unit: un, value: Complex::with_val(1024, Complex::parse(value).unwrap()) };
 
         ContextItem { uv_metric: uv.metricify(), format: format.to_string() }
     }
