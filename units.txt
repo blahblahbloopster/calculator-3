@@ -29,7 +29,7 @@ nanogram / ng: 0.000000000001 kg
 microgram / ug / μg: 0.000000001 kg
 milligram / mg: 0.000001 kg
 gram / g: 0.001 kg
-*metricton / ton / t: 1000 kg
+metricton / ton / t: 1000 kg
 dalton / Da / u: 1.66053906660e-26 kg
 
 litre / liter / L: 1000 cm^3 (prefixes)
@@ -142,3 +142,5 @@ astronomicalunit / au: 149597870700 m
 
 martiansol / marssol: 24*3600 + 39*60 + 35.244 s
 pirateninja: 1 kW*h/martiansol (prefixes)
+
+teller (prefixes)

@@ -393,6 +393,9 @@
 5.7e26 kg - $x the mass of saturn
 1.9e27 kg - $x the mass of jupiter
 2e30 kg - $x the mass of the sun
+4e31 kg - $x the mass of Betelguese, a red supergiant
+10e35 kg - $x the mass of a typical globular cluster
+
 # TODO: more space stuff
 
 # molar concentration
@@ -577,3 +580,6 @@
 124000000 m/s - $x the speed of light in diamond
 150000000 m/s - $x the escape velocity of a neutron star
 1 c - $x the speed of light
+
+# jokes
+0.01 teller - $% as insane as Edward Teller
