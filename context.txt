@@ -364,6 +364,7 @@
 150 g - $x mass of an orange
 0.145 kg - $x mass of a baseball
 4.5 kg - $x mass of a housecat
+5.0 kg - mass of $ canadian geese
 150 kg - $x mass of a lion
 300 kg - $x mass of a grand piano
 1500 kg - $x mass of a typical car

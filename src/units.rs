@@ -442,8 +442,26 @@ impl UnitHolder {
 
         for u in &out.units {
             for n in &u.names {
-                if n.contains("*") {
+                if n.contains('*') {
                     panic!()
+                }
+            }
+            let n = match &u.unit {
+                UnitTree::Base(_) => { None }
+                UnitTree::Scale(_, _, name) => { Some(name) }
+                UnitTree::Product(_, Some(name)) => { Some(name) }
+                UnitTree::Product(_, None) => None,
+                UnitTree::Quotient(_, _, Some(name)) => { Some(name) }
+                UnitTree::Quotient(_, _, _) => None
+            };
+            if let Some(names) = n {
+                if names.main.contains('*') {
+                    panic!("name '{}' contains asterisk", names.main)
+                }
+                for name in &names.others {
+                    if name.contains('*') {
+                        panic!("secondary name '{}' contains asterisk", name)
+                    }
                 }
             }
         }
@@ -513,8 +531,8 @@ peg::parser! {
         }
 
         rule r(holder: &mut UnitHolder) -> ParsedUnit
-            = n:name() ++ "/" ":" v:coefficient(holder) u:unit(holder) { ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Scale(Box::new(u), v, UnitName { main: n[0].to_string(), others: n.iter().skip(1).map(|x| x.to_string()).collect() }) } } /
-              n:name() ++ "/" { let name = n[0].to_string(); ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Base(BaseUnit(UnitName { main: n[0].to_string(), others: n.iter().skip(1).map(|x| x.to_string()).collect() })) } }
+            = n:name() ++ "/" ":" v:coefficient(holder) u:unit(holder) { ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Scale(Box::new(u), v, UnitName { main: n[0].to_string().replace("*", ""), others: n.iter().skip(1).map(|x| x.to_string().replace("*", "")).collect() }) } } /
+              n:name() ++ "/" { let name = n[0].to_string(); ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Base(BaseUnit(UnitName { main: n[0].to_string().replace("*", ""), others: n.iter().skip(1).map(|x| x.to_string().replace("*", "")).collect() })) } }
         
         pub rule row(holder: &mut UnitHolder) -> Vec<ParsedUnit>
             = original:r(holder) "(prefixes)" { original.prefixes() } /
