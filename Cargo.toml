@@ -1,5 +1,5 @@
 [package]
-name = "rustcalc-4"
+name = "foocalc"
 version = "0.1.0"
 edition = "2021"
 authors = ["blahblahbloopster"]
@@ -11,7 +11,7 @@ keywords = ["command-line-utilities", "mathematics"]
 include = ["units.txt", "context.txt"]
 
 [[bin]]
-name = "rustcalc-4"
+name = "foocalc"
 
 [dependencies]
 rug = "1.19"

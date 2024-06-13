@@ -2,3 +2,4 @@
 Cargo.lock
 *.nix
 rust-toolchain.toml
+*.crate
