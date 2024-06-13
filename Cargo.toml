@@ -8,10 +8,7 @@ readme = "README.md"
 repository = "https://github.com/blahblahbloopster/calculator-3"
 license = "Apache-2.0"
 keywords = ["command-line-utilities", "mathematics"]
-include = ["units.txt", "context.txt"]
-
-[[bin]]
-name = "foocalc"
+include = ["units.txt", "context.txt", "src/**/*"]
 
 [dependencies]
 rug = "1.19"
