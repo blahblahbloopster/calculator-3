@@ -7,7 +7,8 @@ description = "A command line RPN calculator with multiple precision and unit su
 readme = "README.md"
 repository = "https://github.com/blahblahbloopster/calculator-3"
 license = "Apache-2.0"
-keywords = ["command-line-utilities", "mathematics"]
+categories = ["command-line-utilities", "mathematics"]
+keywords = ["calculator", "rpn"]
 include = ["units.txt", "context.txt", "src/**/*"]
 
 [dependencies]
