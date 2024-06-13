@@ -492,7 +492,7 @@ peg::parser! {
             --
             u:(@) "^" n:num() {
                 let mut out = vec![];
-                for _ in 0..n {
+                for _ in 0..n.abs() {
                     out.push(u.clone())
                 }
                 if n < 0 {
@@ -620,7 +620,7 @@ peg::parser! {
             --
             u:(@) _ "^" _ n:num() {
                 let mut out = vec![];
-                for _ in 0..n {
+                for _ in 0..n.abs() {
                     out.push(u.clone()?)
                 }
                 if n < 0 {

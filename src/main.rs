@@ -1,29 +1,37 @@
-use std::{collections::HashMap, ops::Range, sync::{Mutex, Arc}, cell::UnsafeCell};
+use std::{
+    cell::UnsafeCell,
+    collections::HashMap,
+    ops::Range,
+    sync::{Arc, Mutex},
+};
 
 use context::UnitContext;
 use dice::TaggedDiceRoll;
-use units::UnitHolder;
 use parser::{Command, Infix, Tag};
 use rpn::RPN;
-use rustyline::{highlight::Highlighter, error::ReadlineError, ConditionalEventHandler, Cmd, EventHandler, KeyEvent, Editor, Modifiers};
-use rustyline_derive::{Completer, Helper, Validator, Hinter};
+use rustyline::{
+    error::ReadlineError, highlight::Highlighter, Cmd, ConditionalEventHandler, Config, Editor,
+    EventHandler, KeyEvent, Modifiers,
+};
+use rustyline_derive::{Completer, Helper, Hinter, Validator};
+use units::UnitHolder;
 
 use crate::parser::rpn_parser;
 
+mod context;
+mod dice;
 mod parser;
 mod rpn;
 mod units;
-mod dice;
-mod context;
 
 #[derive(Validator, Helper, Completer, Hinter)]
 struct Session {
-    calculator: RPN
+    calculator: RPN,
 }
 
 struct ModifiableString {
     original: String,
-    modifications: HashMap<usize, String>
+    modifications: HashMap<usize, String>,
 }
 
 impl ModifiableString {
@@ -46,25 +54,36 @@ impl ModifiableString {
 
     fn before(&mut self, index: usize, value: String) {
         match self.modifications.get_mut(&index) {
-            Some(v) => { v.push_str(value.as_str()) }
-            None => { self.modifications.insert(index, value); }
+            Some(v) => v.push_str(value.as_str()),
+            None => {
+                self.modifications.insert(index, value);
+            }
         }
     }
 
     fn after(&mut self, index: usize, value: String) {
         match self.modifications.get_mut(&index) {
-            Some(v) => { v.insert_str(0, value.as_str()) }
-            None => { self.modifications.insert(index, value); }
+            Some(v) => v.insert_str(0, value.as_str()),
+            None => {
+                self.modifications.insert(index, value);
+            }
         }
     }
 
     fn new(original: String) -> ModifiableString {
-        ModifiableString { original, modifications: HashMap::new() }
+        ModifiableString {
+            original,
+            modifications: HashMap::new(),
+        }
     }
 }
 
 enum Color {
-    Number, Unit, Operator, Variable, Comment
+    Number,
+    Unit,
+    Operator,
+    Variable,
+    Comment,
 }
 
 impl Color {
@@ -88,17 +107,15 @@ impl Color {
                 Color::infix_color(r, out);
                 Color::pnt(Color::Operator, o, out)
             }
-            Infix::Num(v) => {
-                match &v.item {
-                    parser::PUnitValue::UnV { unit, value } => {
-                        Color::pnt(Color::Unit, unit, out);
-                        Color::pnt(Color::Number, value, out);
-                    }
-                    parser::PUnitValue::Dimensionless { value } => {
-                        Color::pnt(Color::Number, value, out);
-                    }
+            Infix::Num(v) => match &v.item {
+                parser::PUnitValue::UnV { unit, value } => {
+                    Color::pnt(Color::Unit, unit, out);
+                    Color::pnt(Color::Number, value, out);
                 }
-            }
+                parser::PUnitValue::Dimensionless { value } => {
+                    Color::pnt(Color::Number, value, out);
+                }
+            },
             Infix::MonoOp(op, expr) => {
                 Color::infix_color(expr, out);
                 Color::pnt(Color::Operator, op, out);
@@ -109,21 +126,20 @@ impl Color {
                 }
                 Color::pnt(Color::Operator, ident, out);
             }
-            Infix::VarAccess(v) => {
-                Color::pnt(Color::Variable, v, out)
-            }
+            Infix::VarAccess(v) => Color::pnt(Color::Variable, v, out),
         }
     }
 
     fn dice_color(expr: &Tag<TaggedDiceRoll>, out: &mut ModifiableString) {
         match &expr.item {
-            TaggedDiceRoll::Simple(_, num) => {
-                Color::pnt(Color::Number, num, out)
-            }
+            TaggedDiceRoll::Simple(_, num) => Color::pnt(Color::Number, num, out),
             TaggedDiceRoll::Constant(n) => Color::pnt(Color::Number, n, out),
-            TaggedDiceRoll::Advantage { l_paren: _, roll, n: _, r_paren: _ } => {
-                Self::dice_color(roll, out)
-            }
+            TaggedDiceRoll::Advantage {
+                l_paren: _,
+                roll,
+                n: _,
+                r_paren: _,
+            } => Self::dice_color(roll, out),
             TaggedDiceRoll::Sum(a, op, b) => {
                 Self::dice_color(a, out);
                 Color::pnt(Color::Operator, op, out);
@@ -167,27 +183,25 @@ impl Color {
                     rpn::Function::PrettyPrint => Color::Operator,
                     rpn::Function::VarGet(_) => Color::Variable,
                     rpn::Function::VarSet(_) => Color::Variable,
-                    _ => Color::Operator  // math functions
+                    _ => Color::Operator, // math functions
                 }
             }
             Command::Comment => Color::Comment,
             Command::Dice(expr) => {
                 Color::dice_color(expr, out);
                 return;
-            },
+            }
             Command::DiceProb(expr, comp, thresh) => {
                 Color::dice_color(expr, out);
                 Color::pnt(Color::Operator, comp, out);
                 Color::pnt(Color::Number, thresh, out);
                 return;
-            },
+            }
             Command::DiceHistogram(expr) => {
                 Color::dice_color(expr, out);
                 return;
-            },
-            Command::UnitDef(_, _) => {
-                Color::Unit
             }
+            Command::UnitDef(_, _) => Color::Unit,
         };
         Color::pnt(color, c, out);
     }
@@ -216,12 +230,8 @@ impl Session {
         let _ = pos;
         let parsed = rpn_parser::commands(line, &self.calculator);
         match parsed {
-            Ok(v) => {
-                Some(Color::highlight(&v, line))
-            }
-            Err(_) => {
-                None
-            }
+            Ok(v) => Some(Color::highlight(&v, line)),
+            Err(_) => None,
         }
     }
 }
@@ -231,22 +241,24 @@ impl Highlighter for Session {
         let _ = pos;
         let parsed = rpn_parser::commands(line, &self.calculator);
         let l = match parsed {
-            Ok(v) => {
-                Color::highlight(&v, line)
-            }
+            Ok(v) => Color::highlight(&v, line),
             Err(_) => {
                 let mut out = line.to_string();
                 let mut popped = String::new();
                 loop {
                     match out.pop() {
-                        Some(v) => { popped.insert(0, v) }
-                        None => return std::borrow::Cow::Owned(line.to_string())
+                        Some(v) => popped.insert(0, v),
+                        None => return std::borrow::Cow::Owned(line.to_string()),
                     }
                     let h = self.highlight_once(out.as_str(), pos);
                     match h.clone() {
                         Some(v) => {
                             let style = ansi_term::Color::Red.reverse();
-                            return std::borrow::Cow::Owned(v + &style.prefix().to_string() + &popped + &style.suffix().to_string());        
+                            return std::borrow::Cow::Owned(
+                                v + &style.prefix().to_string()
+                                    + &popped
+                                    + &style.suffix().to_string(),
+                            );
                         }
                         None => {}
                     }
@@ -263,36 +275,35 @@ impl Highlighter for Session {
 }
 
 struct UndoHandler {
-    undo: Arc<Mutex<UnsafeCell<bool>>>
+    undo: Arc<Mutex<UnsafeCell<bool>>>,
 }
 impl ConditionalEventHandler for UndoHandler {
     fn handle(
-            &self,
-            _evt: &rustyline::Event,
-            _n: rustyline::RepeatCount,
-            _positive: bool,
-            _ctx: &rustyline::EventContext,
-        ) -> Option<rustyline::Cmd> {
-            *self.undo.lock().unwrap().get_mut() = true;
-            Some(Cmd::Interrupt)
+        &self,
+        _evt: &rustyline::Event,
+        _n: rustyline::RepeatCount,
+        _positive: bool,
+        _ctx: &rustyline::EventContext,
+    ) -> Option<rustyline::Cmd> {
+        *self.undo.lock().unwrap().get_mut() = true;
+        Some(Cmd::Interrupt)
     }
 }
 
-struct QuoteCompleteHandler {
-}
+struct QuoteCompleteHandler {}
 impl ConditionalEventHandler for QuoteCompleteHandler {
     fn handle(
-            &self,
-            evt: &rustyline::Event,
-            _n: rustyline::RepeatCount,
-            _positive: bool,
-            _ctx: &rustyline::EventContext,
-        ) -> Option<rustyline::Cmd> {
-            // unsafe {
-            //     let editor = &mut (*(self.editor as *mut Editor<Session>));
-            // }
-            Some(Cmd::Insert(1, "''".to_string()))
-            // Some(Cmd::Replace(rustyline::Movement::ForwardChar(1), Some("''".to_string())))
+        &self,
+        evt: &rustyline::Event,
+        _n: rustyline::RepeatCount,
+        _positive: bool,
+        _ctx: &rustyline::EventContext,
+    ) -> Option<rustyline::Cmd> {
+        // unsafe {
+        //     let editor = &mut (*(self.editor as *mut Editor<Session>));
+        // }
+        Some(Cmd::Insert(1, "''".to_string()))
+        // Some(Cmd::Replace(rustyline::Movement::ForwardChar(1), Some("''".to_string())))
     }
 }
 fn main() {
@@ -308,13 +319,13 @@ fn main() {
             match inp.parse::<u32>() {
                 Ok(v @ 10..=16777216) => {
                     prec = v;
-                    break
+                    break;
                 }
-                _ => println!("Enter a valid number!")
+                _ => println!("Enter a valid number!"),
             }
         }
     }
-    
+
     let holder = UnitHolder::new(include_str!("../units.txt"), prec);
     let context = UnitContext::new(&holder, include_str!("../context.txt"));
 
@@ -326,7 +337,9 @@ fn main() {
     let undo = Arc::new(Mutex::new(UnsafeCell::new(false)));
     editor.bind_sequence(
         KeyEvent::ctrl('z'),
-        EventHandler::Conditional(Box::new(UndoHandler { undo: Arc::clone(&undo) })),
+        EventHandler::Conditional(Box::new(UndoHandler {
+            undo: Arc::clone(&undo),
+        })),
     );
 
     // WIP
@@ -348,10 +361,10 @@ fn main() {
                     *undo.lock().unwrap().get_mut() = false
                 }
                 continue;
-            },
+            }
             Err(ReadlineError::Eof) => {
                 return;
-            },
+            }
             Err(_) => {
                 continue;
             }

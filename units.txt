@@ -144,3 +144,7 @@ martiansol / marssol: 24*3600 + 39*60 + 35.244 s
 pirateninja: 1 kW*h/martiansol (prefixes)
 
 teller (prefixes)
+
+westernpackbutterstick / butterstickwest: 119852 mm^3
+elgin / butterstickeast: 123904 mm^3
+

@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::{Display, Formatter, Debug}, ops::Add};
 use rand::{rngs::StdRng, SeedableRng, prelude::Distribution};
 use regex::Regex;
 use rug::{Float, Complex, float::Constant::Pi, ops::Pow};
-use crate::{parser::{Command, Infix}, units::{UV, UnitTree, UVError, UnitHolder, ParsedUnit, UnitName}, context::UnitContext};
+use crate::{context::UnitContext, parser::{Command, Infix}, units::{BaseUnit, ParsedUnit, UVError, UnitHolder, UnitName, UnitTree, UV}};
 
 pub struct RPN {
     pub prec: u32,
@@ -228,25 +228,18 @@ impl RPN {
             }
             Command::UnitDef(name, val) => {
                 let value = match val {
-                    Some(v) => self.infix_eval(v)?,
-                    None => UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, 1) },
+                    Some(v) => Some(self.infix_eval(v)?),
+                    None => None
                 };
 
                 let names = UnitName { main: name.item.clone(), others: vec![] };
 
-                // let (r, i) = (value.value.clone() - Complex::with_val(self.prec, 1)).into_real_imag();
-
-                // let unit = if r.abs().to_f64() < 0.00001 && i.abs().to_f64() < 0.00001 {
-                //     value.unit.clone()
-                // } else {
-                //     UnitTree::Scale(Box::new(value.unit), value.value.real().clone(), names.clone())
-                // };
-                let unit = UnitTree::Scale(Box::new(value.unit), value.value.real().clone(), names.clone());
-                // println!("{}", *name);
+                let unit = match value { 
+                    Some(v) => UnitTree::Scale(Box::new(v.unit), v.value.real().clone(), names.clone()),
+                    None => UnitTree::Base(BaseUnit(names))
+                };
 
                 self.units.units.push(ParsedUnit { names: vec![name.item], unit });
-
-                // println!("{:?}", self.units.parse("baby"));
 
                 Ok(())
             }
