@@ -78,6 +78,8 @@ nauticalmile / nmi: 1852 m
 # no, I'm not adding the other moronic imperial area measures
 acre:  4046.8564224 m^2
 
+rankine / R: 5 / 9 kelvin
+
 
 # these are the US liquid ones, I'm not adding any others, fuck you
 minim: 61.611519921875 μL
@@ -130,7 +132,9 @@ shake: 10 ns (prefixes)
 degree / deg: 2*pi/360 rad
 arcminute / arcmin: 1/60 deg
 arcsecond / arcsec: 1/60 arcmin
-rotation / rot: 2*pi rad
+rotation / rot / revolution / rev: 2*pi rad
+
+RPM / rpm: 1 rot/min
 
 *gee: 9.80665 m/s^2
 
@@ -147,4 +151,8 @@ teller (prefixes)
 
 westernpackbutterstick / butterstickwest: 119852 mm^3
 elgin / butterstickeast: 123904 mm^3
+
+dndturn / turn: 6 sec
+
+footballfield: 100 yard
 
