@@ -169,7 +169,7 @@ impl RPN {
                     crate::parser::Op::Times => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); Ok(a * b) },
                     crate::parser::Op::Divide => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); a / b },
                     crate::parser::Op::Pow => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); Ok(a.exp(b.value)) },
-                    crate::parser::Op::Factorial => { let arg = &self.pop(1)?[0]; Ok(UV { unit: UnitTree::dimensionless(), value: (*(arg.value.real().clone().add(Float::with_val(1024, 1)).gamma().as_complex())).clone() }) }
+                    crate::parser::Op::Factorial => { let arg = &self.pop(1)?[0]; Ok(UV { unit: UnitTree::dimensionless(), value: Function::factorial(arg.value.clone()) }) }
                 }.map_err(|x| EvalError::UnitError(x))?;
 
                 self.stack.push(out.into());
@@ -291,14 +291,15 @@ impl RPN {
                     crate::parser::Op::Times => Ok(l * r),
                     crate::parser::Op::Divide => (l / r).map_err(|x| EvalError::UnitError(x)),
                     crate::parser::Op::Pow => Ok(l.exp(r.value)),
-                    crate::parser::Op::Factorial => Err(EvalError::UnimplementedError)
+                    crate::parser::Op::Factorial => panic!("illegal state (factorial is a monoop)"),
                 }
             }
             Infix::Num(n) => Ok(n.item.as_uv()),
             Infix::MonoOp(op, value) => {
                 let v = self.infix_eval(*value)?;
                 match *op {
-                    crate::parser::MonoOp::Minus => Ok(UV { value: -v.value, unit: v.unit })
+                    crate::parser::MonoOp::Minus => Ok(UV { value: -v.value, unit: v.unit }),
+                    crate::parser::MonoOp::Factorial => Ok(UV { value: Function::factorial(v.value), unit: v.unit })
                 }
             }
             Infix::FunctionInv(func, args) => {
@@ -373,6 +374,7 @@ pub enum Function {
     ASin, ACos, ATan, ATan2, ACot,
     Sqrt,
     Ln, Log10, Log2, LogB,
+    Choose,
     Drop(usize), Duplicate, Swap, Clear, Clipboard, PrettyPrint, Context,
     VarGet(String), VarSet(String)
 }
@@ -400,6 +402,7 @@ impl Function {
             Function::Log10 => Some(1),
             Function::Log2 => Some(1),
             Function::LogB => Some(2),
+            Function::Choose => Some(2),
 
             Function::Drop(_) => None,
             Function::Duplicate => None,
@@ -438,6 +441,7 @@ impl Function {
             Function::Log2 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() / Complex::with_val(calc.prec, 2).ln() }),
             Function::LogB => { let a = arg; let b = args[1].clone(); let res = a.value.ln() / b.value.ln(); Ok(UV { unit: a.unit, value: res }) }
             Function::ATan2 => Err(EvalError::UnimplementedError),
+            Function::Choose => Ok(UV { unit: UnitTree::dimensionless(), value: Self::factorial(arg.value.clone()) / (Self::factorial(args[1].value.clone()) * (Self::factorial(arg.value - args[1].value.clone()))) }),
 
             _ => Err(EvalError::IllegalFunction(self))  // this is so fucking stupid holy shit
         }
@@ -597,6 +601,8 @@ impl Function {
             "log2" => Some(Function::Log2),
             "logb" => Some(Function::LogB),
 
+            "choose" => Some(Function::Choose),
+
             "d" => Some(Function::Duplicate),
             "s" => Some(Function::Swap),
             "clear" => Some(Function::Clear),
@@ -613,6 +619,10 @@ impl Function {
                 }
             }
         }
+    }
+
+    fn factorial(v: Complex) -> Complex {
+        (*(v.real().add(Float::with_val(1024, 1)).gamma().as_complex())).clone()
     }
 }
 

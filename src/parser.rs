@@ -65,6 +65,7 @@ peg::parser! {
             x:(@) _ tl:position!() "/" tr:position!() _ y:@ { Infix::BiOp(Box::new(x), Tag::new(Op::Divide, tl..tr), Box::new(y)) }
             --
             tl:position!() "-" tr:position!() x:(@) { Infix::MonoOp(Tag::new(MonoOp::Minus, tl..tr), Box::new(x)) }
+            x:(@) _ tl:position!() "!" tr:position!() { Infix::MonoOp(Tag::new(MonoOp::Factorial, tl..tr), Box::new(x)) }
             --
             x:(@) _ tl:position!() "^" tr:position!() _ y:@ { Infix::BiOp(Box::new(x), Tag::new(Op::Pow, tl..tr), Box::new(y)) }
             --
@@ -231,7 +232,7 @@ pub enum Op {
 
 #[derive(Debug, Clone, Copy)]
 pub enum MonoOp {
-    Minus
+    Minus, Factorial
 }
 
 #[derive(Debug, Clone)]
