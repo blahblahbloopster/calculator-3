@@ -535,7 +535,8 @@ peg::parser! {
               n:name() ++ "/" { let name = n[0].to_string(); ParsedUnit { names: n.iter().map(|x| x.to_string()).collect(), unit: UnitTree::Base(BaseUnit(UnitName { main: n[0].to_string().replace("*", ""), others: n.iter().skip(1).map(|x| x.to_string().replace("*", "")).collect() })) } }
         
         pub rule row(holder: &mut UnitHolder) -> Vec<ParsedUnit>
-            = original:r(holder) "(prefixes)" { original.prefixes() } /
+            = original:r(holder) "(prefixes)" { original.prefixes(0) } /
+              original:r(holder) "(prefixes 10^" n:num() ")" { original.prefixes(n) } /
               original:r(holder) { original.de_asterisk() }
     }
 }
@@ -551,8 +552,8 @@ impl ParsedUnit {
         vec![out]
     }
 
-    fn prefixes(self) -> Vec<ParsedUnit> {
-        let prefixes = vec![
+    fn prefixes(self, scale_log10: i32) -> Vec<ParsedUnit> {
+        let mut prefixes = vec![
             ("quetta", 	"Q", 	Float::with_val(1024, 10).pow(30)),
             ("ronna", 	"R", 	Float::with_val(1024, 10).pow(27)),
             ("yotta", 	"Y", 	Float::with_val(1024, 10).pow(24)),
@@ -590,7 +591,18 @@ impl ParsedUnit {
             ("mebi", 	"Mi", 	Float::with_val(1024, 2).pow(20)),
             ("kibi", 	"Ki", 	Float::with_val(1024, 2).pow(10)),
         ];
+        let fac = Float::with_val(1024, 10).pow(scale_log10);
+        for (_, _, v) in &mut prefixes {
+            *v = &*v * fac.clone();
+        }
 
+        // FIXME: apply scale
+        //let u = match self.unit {
+        //    UnitTree::Base(base_unit) => todo!(),
+        //    UnitTree::Product(unit_trees, unit_name) => todo!(),
+        //    UnitTree::Quotient(unit_tree, unit_tree1, unit_name) => todo!(),
+        //    UnitTree::Scale(unit_tree, float, unit_name) => todo!(),
+        //};
         let mut out = vec![self.clone()];
         out[0].names.iter_mut().for_each(|x| { *x = x.replace("*", "") });
         for (full, abbrev, factor) in prefixes {

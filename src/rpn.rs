@@ -375,6 +375,7 @@ pub enum Function {
     Sqrt,
     Ln, Log10, Log2, LogB,
     Choose,
+    LorentzFactor,
     Drop(usize), Duplicate, Swap, Clear, Clipboard, PrettyPrint, Context,
     VarGet(String), VarSet(String)
 }
@@ -403,6 +404,7 @@ impl Function {
             Function::Log2 => Some(1),
             Function::LogB => Some(2),
             Function::Choose => Some(2),
+            Function::LorentzFactor => Some(1),
 
             Function::Drop(_) => None,
             Function::Duplicate => None,
@@ -442,6 +444,11 @@ impl Function {
             Function::LogB => { let a = arg; let b = args[1].clone(); let res = a.value.ln() / b.value.ln(); Ok(UV { unit: a.unit, value: res }) }
             Function::ATan2 => Err(EvalError::UnimplementedError),
             Function::Choose => Ok(UV { unit: UnitTree::dimensionless(), value: Self::factorial(arg.value.clone()) / (Self::factorial(args[1].value.clone()) * (Self::factorial(arg.value - args[1].value.clone()))) }),
+            Function::LorentzFactor => {
+                let beta = arg.convert(calc.units.parse("c").unwrap()).map_err(|x| EvalError::UnitError(x))?.value.real().clone();
+                let gamma = Complex::with_val(1024, 1) / (Complex::with_val(1024, 1) - beta.square()).sqrt();
+                Ok(UV { unit: UnitTree::dimensionless(), value: gamma })
+            }
 
             _ => Err(EvalError::IllegalFunction(self))  // this is so fucking stupid holy shit
         }
@@ -602,6 +609,8 @@ impl Function {
             "logb" => Some(Function::LogB),
 
             "choose" => Some(Function::Choose),
+
+            "lorentzfactor" => Some(Function::LorentzFactor),
 
             "d" => Some(Function::Duplicate),
             "s" => Some(Function::Swap),

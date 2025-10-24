@@ -1,6 +1,6 @@
 # base units
 second / s / sec (prefixes)
-kilogram / kg
+gram / g (prefixes)
 mole / mol (prefixes)
 candela / cd (prefixes)
 kelvin / K (prefixes)
@@ -25,10 +25,6 @@ minute / min: 60 s
 hour / h: 60 min
 *day: 24 h
 
-nanogram / ng: 0.000000000001 kg
-microgram / ug / μg: 0.000000001 kg
-milligram / mg: 0.000001 kg
-gram / g: 0.001 kg
 metricton / ton / t: 1000 kg
 dalton / Da / u: 1.66053906660e-26 kg
 
@@ -38,10 +34,11 @@ newton / N: 1 kg*m/s^2 (prefixes)
 pascal / Pa: 1 N/m^2 (prefixes)
 joule / J: 1 N*m (prefixes)
 watt / W: 1 J/s (prefixes)
-coulomb / C: 1 A/s (prefixes)
+coulomb / C: 1 A*s (prefixes)
 volt / V: 1 J/C (prefixes)
 weber / Wb: 1 V*s (prefixes)
 tesla / T: 1 Wb/m^2 (prefixes)
+gauss / G: 1e-4 T (prefixes)
 farad / F: 1 C/V (prefixes)
 *ohm: 1 V/A (prefixes)
 siemens / S: 1 A/V (prefixes)
@@ -60,10 +57,15 @@ lumen / lm: 1 cd/sr (prefixes)
 *lux / lz: 1 lm / m^2 (prefixes)
 hectare / ha: 10000 m^2
 
-kilotontnt / kt: 4.184 TJ
-megatontnt / Mt: 1000 kilotontnt
-gigatontnt / Gt: 1000 megatontnt
+kilotontnt: 4.184 TJ
+megatontnt: 1000 kilotontnt
+gigatontnt: 1000 megatontnt
 
+
+plancklength: 1.616255e-35 m
+planckmass: 2.176434e-8 kg
+plancktime: 5.391247e-44 s
+plancktemperature: 1.416784e32 K
 
 # derived (imperial)
 inch / in: 2.54 cm
