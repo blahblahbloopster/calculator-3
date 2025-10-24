@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::{Display, Formatter, Debug}, ops::Add};
 use rand::{rngs::StdRng, SeedableRng, prelude::Distribution};
 use regex::Regex;
 use rug::{Float, Complex, float::Constant::Pi, ops::Pow};
-use crate::{context::UnitContext, parser::{Command, Infix}, units::{BaseUnit, ParsedUnit, UVError, UnitHolder, UnitName, UnitTree, UV}};
+use crate::{context::UnitContext, parser::{Command, Infix}, units::{Base, BaseUnit, ParsedUnit, UVError, UnitHolder, UnitName, UnitTree, UV}};
 
 pub struct RPN {
     pub prec: u32,
@@ -82,8 +82,8 @@ impl From<UV> for StackItem {
 impl RPN {
     pub fn new(prec: u32, units: UnitHolder, context: UnitContext) -> Self {
         let mut vars = HashMap::new();
-        vars.insert("pi".to_string(), UV { value: Complex::with_val(prec, Pi), unit: UnitTree::dimensionless() });
-        vars.insert("e".to_string(), UV { value: Complex::with_val(prec, 1).exp(), unit: UnitTree::dimensionless() });
+        vars.insert("pi".to_string(), UV { value: Complex::with_val(prec, Pi), unit: UnitTree::dimensionless(), base: Base::default() });
+        vars.insert("e".to_string(), UV { value: Complex::with_val(prec, 1).exp(), unit: UnitTree::dimensionless(), base: Base::default() });
 
         RPN { prec, units, context, stack: vec![], vars, undo_checkpoints: vec![], rng: StdRng::from_entropy() }
     }
@@ -169,7 +169,7 @@ impl RPN {
                     crate::parser::Op::Times => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); Ok(a * b) },
                     crate::parser::Op::Divide => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); a / b },
                     crate::parser::Op::Pow => { let args = self.pop(2)?; let a = args[0].clone(); let b = args[1].clone(); Ok(a.exp(b.value)) },
-                    crate::parser::Op::Factorial => { let arg = &self.pop(1)?[0]; Ok(UV { unit: UnitTree::dimensionless(), value: Function::factorial(arg.value.clone()) }) }
+                    crate::parser::Op::Factorial => { let arg = &self.pop(1)?[0]; Ok(UV { unit: UnitTree::dimensionless(), value: Function::factorial(arg.value.clone()), base: arg.base }) }
                 }.map_err(|x| EvalError::UnitError(x))?;
 
                 self.stack.push(out.into());
@@ -192,14 +192,14 @@ impl RPN {
             }
             Command::UnitSet(v) => {
                 let popped = self.pop_single()?;
-                self.stack.push(UV { unit: v.item, value: popped.value }.into());
+                self.stack.push(UV { unit: v.item, value: popped.value, base: popped.base }.into());
                 Ok(())
             }
             Command::Dice(tree) => {
                 let distr = tree.item.as_roll().distribution();
                 let roll = distr.sample(&mut self.rng);
                 let percentile = distr.percentile(roll);
-                self.stack.push(StackItem::NumWithPercentile(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, roll) }, percentile));
+                self.stack.push(StackItem::NumWithPercentile(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, roll), base: Base::default() }, percentile));
                 Ok(())
             },
             Command::DiceProb(tree, comp, thresh) => {
@@ -216,7 +216,7 @@ impl RPN {
                     total += *weight;
                 }
 
-                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, acc / total) }.into());
+                self.stack.push(UV { unit: UnitTree::dimensionless(), value: Complex::with_val(self.prec, acc / total), base: Base::default() }.into());
 
                 Ok(())
             }
@@ -253,7 +253,7 @@ impl RPN {
         let value = &uv.value;
         let unit = &uv.unit;
 
-        out.push_str(PComplex(value).to_string().as_str());
+        out.push_str(PComplex(value, uv.base).to_string().as_str());
         let u = format!("{}", unit);
         if u.len() != 0 {
             out.push(' ');
@@ -298,8 +298,8 @@ impl RPN {
             Infix::MonoOp(op, value) => {
                 let v = self.infix_eval(*value)?;
                 match *op {
-                    crate::parser::MonoOp::Minus => Ok(UV { value: -v.value, unit: v.unit }),
-                    crate::parser::MonoOp::Factorial => Ok(UV { value: Function::factorial(v.value), unit: v.unit })
+                    crate::parser::MonoOp::Minus => Ok(UV { value: -v.value, unit: v.unit, base: v.base }),
+                    crate::parser::MonoOp::Factorial => Ok(UV { value: Function::factorial(v.value), unit: v.unit, base: v.base })
                 }
             }
             Infix::FunctionInv(func, args) => {
@@ -429,25 +429,26 @@ impl Function {
         }
         let arg = args[0].clone();
         match self {
-            Function::Sin => Ok(UV { unit: UnitTree::dimensionless(), value: arg.as_rad(&calc.units)?.sin() }),
-            Function::Cos => Ok(UV { unit: UnitTree::dimensionless(), value: arg.as_rad(&calc.units)?.cos() }),
-            Function::Tan => Ok(UV { unit: UnitTree::dimensionless(), value: arg.as_rad(&calc.units)?.tan() }),
-            Function::Cot => Ok(UV { unit: UnitTree::dimensionless(), value: arg.as_rad(&calc.units)?.tan().recip() }),
-            Function::ASin => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.asin() }),
-            Function::ACos => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.acos() }),
-            Function::ATan => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.atan() }),
-            Function::ACot => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.recip().atan() }),
+            Function::Sin => Ok(UV { unit: UnitTree::dimensionless(), base: arg.base, value: arg.as_rad(&calc.units)?.sin() }),
+            Function::Cos => Ok(UV { unit: UnitTree::dimensionless(), base: arg.base, value: arg.as_rad(&calc.units)?.cos() }),
+            Function::Tan => Ok(UV { unit: UnitTree::dimensionless(), base: arg.base, value: arg.as_rad(&calc.units)?.tan() }),
+            Function::Cot => Ok(UV { unit: UnitTree::dimensionless(), base: arg.base, value: arg.as_rad(&calc.units)?.tan().recip() }),
+            Function::ASin => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.asin(), base: arg.base }),
+            Function::ACos => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.acos(), base: arg.base }),
+            Function::ATan => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.atan(), base: arg.base }),
+            Function::ACot => Ok(UV { unit: calc.units.parse("rad").unwrap(), value: arg.value.recip().atan(), base: arg.base }),
             Function::Sqrt => Ok(arg.exp(Complex::with_val(calc.prec, 0.5))),
-            Function::Ln => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() }),
-            Function::Log10 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.log10() }),
-            Function::Log2 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() / Complex::with_val(calc.prec, 2).ln() }),
-            Function::LogB => { let a = arg; let b = args[1].clone(); let res = a.value.ln() / b.value.ln(); Ok(UV { unit: a.unit, value: res }) }
+            Function::Ln => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln(), base: arg.base }),
+            Function::Log10 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.log10(), base: arg.base }),
+            Function::Log2 => Ok(UV { unit: UnitTree::dimensionless(), value: arg.value.ln() / Complex::with_val(calc.prec, 2).ln(), base: arg.base }),
+            Function::LogB => { let a = arg; let b = args[1].clone(); let res = a.value.ln() / b.value.ln(); Ok(UV { unit: a.unit, base: a.base, value: res }) }
             Function::ATan2 => Err(EvalError::UnimplementedError),
-            Function::Choose => Ok(UV { unit: UnitTree::dimensionless(), value: Self::factorial(arg.value.clone()) / (Self::factorial(args[1].value.clone()) * (Self::factorial(arg.value - args[1].value.clone()))) }),
+            Function::Choose => Ok(UV { unit: UnitTree::dimensionless(), value: Self::factorial(arg.value.clone()) / (Self::factorial(args[1].value.clone()) * (Self::factorial(arg.value - args[1].value.clone()))), base: arg.base }),
             Function::LorentzFactor => {
+                let base = arg.base;
                 let beta = arg.convert(calc.units.parse("c").unwrap()).map_err(|x| EvalError::UnitError(x))?.value.real().clone();
                 let gamma = Complex::with_val(1024, 1) / (Complex::with_val(1024, 1) - beta.square()).sqrt();
-                Ok(UV { unit: UnitTree::dimensionless(), value: gamma })
+                Ok(UV { unit: UnitTree::dimensionless(), base, value: gamma })
             }
 
             _ => Err(EvalError::IllegalFunction(self))  // this is so fucking stupid holy shit
@@ -544,7 +545,7 @@ impl Function {
                 let item = calc.stack.last().ok_or(EvalError::EmptyStack)?;
 
                 let mut out = String::new();
-                out.push_str(PComplex(&item.b_uv()?.value).pretty_print(&mapping).as_str());
+                out.push_str(PComplex(&item.b_uv()?.value, Base::default()).pretty_print(&mapping).as_str());
                 let u = format!("{}", item.b_uv()?.unit);
                 if u.len() != 0 {
                     out.push(' ');
@@ -635,17 +636,25 @@ impl Function {
     }
 }
 
-struct PFloat<'a>(&'a Float);
-pub struct PComplex<'a>(pub &'a Complex);
+struct PFloat<'a>(&'a Float, Base);
+pub struct PComplex<'a>(pub &'a Complex, Base);
 
 impl<'a> Display for PFloat<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let b = match self.1.0 {
+            2 => "0b".to_owned(),
+            8 => "0o".to_owned(),
+            10 => "".to_owned(),
+            16 => "0x".to_owned(),
+            _ => format!("{}'", self.1.0)
+        };
+
         let trailing_zeros: Regex = Regex::new("\\.?0+$").unwrap();
         let trailing_zeros_exp: Regex = Regex::new("\\.?0+e").unwrap();
         let count = (self.0.prec() as f64 / 10.0_f64.log2()) as usize + 2;
-        let (sign, digits, exp) = self.0.to_sign_string_exp(10, Some(count - 2));
+        let (sign, digits, exp) = self.0.to_sign_string_exp(self.1.0 as i32, Some(count - 2));
         if exp.unwrap_or(0).abs() > 500 {
-            return write!(f, "{}", trailing_zeros_exp.replace(self.0.to_string_radix(10, Some(count - 2)).as_str(), "e"));
+            return write!(f, "{}", trailing_zeros_exp.replace(self.0.to_string_radix(self.1.0 as i32, Some(count - 2)).as_str(), "e"));
         }
         let point_location = digits.len() as i32 - exp.unwrap_or(0) + 1;
         let string = match point_location {
@@ -675,7 +684,7 @@ impl<'a> Display for PFloat<'a> {
             }
         };
         let s = if sign { "-" } else { "" };
-        write!(f, "{}{}", s, &*trailing_zeros.replace(string.as_str(), ""))
+        write!(f, "{b}{}{}", s, &*trailing_zeros.replace(string.as_str(), ""))
     }
 }
 
@@ -696,7 +705,7 @@ impl<'a> PFloat<'a> {
         match found {
             Some((e, n)) => {
                 let pow = Float::with_val(self.0.prec(), 10).pow(e);
-                format!("{} {}", PFloat(&(self.0 / pow)), n)
+                format!("{} {}", PFloat(&(self.0 / pow), self.1), n)
             }
             None => {
                 if exp < 3 {
@@ -704,7 +713,7 @@ impl<'a> PFloat<'a> {
                 } else {
                     let biggest = mapping.last().unwrap();
                     let pow = Float::with_val(self.0.prec(), 10).pow(biggest.0);
-                    format!("{} {}", PFloat(&(self.0 / pow)), biggest.1)
+                    format!("{} {}", PFloat(&(self.0 / pow), self.1), biggest.1)
                 }
             }
         }
@@ -714,19 +723,19 @@ impl<'a> PFloat<'a> {
 impl<'a> Display for PComplex<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.0.imag().is_zero() {
-            write!(f, "{}", PFloat(self.0.real()))
+            write!(f, "{}", PFloat(self.0.real(), self.1))
         } else if self.0.real().is_zero() {
             let img = self.0.imag();
             if img.is_integer() && img.to_f64() == 1.0 {
                 f.write_str("i")
             } else {
-                write!(f, "{}", PFloat(self.0.imag()))?;
+                write!(f, "{}", PFloat(self.0.imag(), self.1))?;
                 f.write_str("i")
             }
         } else {
-            write!(f, "{}", PFloat(self.0.real()))?;
+            write!(f, "{}", PFloat(self.0.real(), self.1))?;
             f.write_str(" + ")?;
-            write!(f, "{}", PFloat(self.0.imag()))?;
+            write!(f, "{}", PFloat(self.0.imag(), self.1))?;
             f.write_str("i")
         }
     }
@@ -735,16 +744,16 @@ impl<'a> Display for PComplex<'a> {
 impl<'a> PComplex<'a> {
     fn pretty_print(&self, mapping: &Vec<(i32, String)>) -> String {
         if self.0.imag().is_zero() {
-            format!("{}", PFloat(self.0.real()).pretty_print(mapping))
+            format!("{}", PFloat(self.0.real(), self.1).pretty_print(mapping))
         } else if self.0.real().is_zero() {
             let img = self.0.imag();
             if img.is_integer() && img.to_f64() == 1.0 {
                 "i".to_string()
             } else {
-                format!("{}i", PFloat(self.0.imag()).pretty_print(mapping))
+                format!("{}i", PFloat(self.0.imag(), self.1).pretty_print(mapping))
             }
         } else {
-            format!("{} + {}i", PFloat(self.0.real()).pretty_print(mapping), PFloat(self.0.imag()).pretty_print(mapping))
+            format!("{} + {}i", PFloat(self.0.real(), self.1).pretty_print(mapping), PFloat(self.0.imag(), self.1).pretty_print(mapping))
         }
     }
 }

@@ -275,10 +275,20 @@ impl Display for UVError {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Base(pub u16);
+
+impl Default for Base {
+    fn default() -> Self {
+        Base(10)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct UV {
     pub unit: UnitTree,
-    pub value: Complex
+    pub value: Complex,
+    pub base: Base
 }
 
 impl Add for UV {
@@ -289,7 +299,7 @@ impl Add for UV {
             let l_mul = self.unit.metricify().1;
             let r_mul = rhs.unit.metricify().1;
 
-            Ok(UV { unit: self.unit, value: self.value + rhs.value * r_mul / l_mul })
+            Ok(UV { unit: self.unit, value: self.value + rhs.value * r_mul / l_mul, base: self.base })
         } else {
             Err(UVError::Mismatch { left: self.unit, right: rhs.unit })
         }
@@ -300,7 +310,7 @@ impl Neg for UV {
     type Output = UV;
     
     fn neg(self) -> Self::Output {
-        UV { unit: self.unit, value: -self.value }
+        UV { unit: self.unit, value: -self.value, base: self.base }
     }
 }
 
@@ -318,7 +328,7 @@ impl Mul for UV {
     fn mul(self, rhs: Self) -> Self::Output {
         let new_units = self.unit * rhs.unit;
 
-        UV { unit: new_units, value: self.value * rhs.value }
+        UV { unit: new_units, value: self.value * rhs.value, base: self.base }
     }
 }
 
@@ -329,7 +339,7 @@ impl Div for UV {
         if rhs.value.eq0() {
             return Err(UVError::DivisionByZero)
         }
-        Ok(UV { unit: self.unit / rhs.unit, value: self.value / rhs.value })
+        Ok(UV { unit: self.unit / rhs.unit, value: self.value / rhs.value, base: self.base })
     }
 }
 
@@ -338,11 +348,11 @@ impl UV {
         if !self.unit.compatible(&dst) { return Err(UVError::Mismatch { left: self.unit, right: dst }); }
         let metricified = self.value * self.unit.metricify().1;
         let converted = metricified / dst.metricify().1;
-        Ok(UV { unit: dst, value: converted })
+        Ok(UV { unit: dst, value: converted, base: self.base })
     }
 
     pub fn exp(self, power: Complex) -> UV {
-        UV { unit: self.unit.exp(&power).unwrap_or(UnitTree::dimensionless()), value: self.value.pow(power) }
+        UV { unit: self.unit.exp(&power).unwrap_or(UnitTree::dimensionless()), value: self.value.pow(power), base: self.base }
     }
 
     pub fn as_rad(self, holder: &UnitHolder) -> Result<Complex, UVError> {
@@ -373,7 +383,7 @@ impl UV {
             }
         }).collect(), None);
 
-        UV { unit: new_unit, value: self.value * multiplier }
+        UV { unit: new_unit, value: self.value * multiplier, base: self.base }
     }
 }
 

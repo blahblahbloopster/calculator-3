@@ -1,6 +1,6 @@
 use rug::{float::Round, Complex};
 
-use crate::units::{UV, UnitHolder, UnitTree};
+use crate::units::{Base, UnitHolder, UnitTree, UV};
 
 pub struct ContextItem {
     pub uv_metric: UV,
@@ -15,7 +15,7 @@ impl ContextItem {
             Some(v) => v,
             None => panic!("failed to parse context item unit '{line}'"),
         };
-        let uv = UV { unit: un, value: Complex::with_val(1024, Complex::parse(value).unwrap()) };
+        let uv = UV { unit: un, value: Complex::with_val(1024, Complex::parse(value).unwrap()), base: Base::default() };
 
         ContextItem { uv_metric: uv.metricify(), format: format.to_string() }
     }

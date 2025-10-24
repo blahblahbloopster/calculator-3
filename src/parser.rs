@@ -2,16 +2,16 @@ use std::{ops::{Range, Deref}, fmt::Debug};
 
 use rug::{Float, Complex};
 
-use crate::{units::{UnitTree, UV}, rpn::{RPN, Function}, dice::TaggedDiceRoll};
+use crate::{units::{UnitTree, UV, Base}, rpn::{RPN, Function}, dice::TaggedDiceRoll};
 
 peg::parser! {
     pub grammar rpn_parser(calc: &RPN) for str {
         rule _ = [' ' | '\n']*
 
-        rule float_b() -> Float
-            = "0x" v:$("-"? $(['0'..='9' | 'a'..='f' | 'A'..='F']+ ("." ['0'..='9' | 'a'..='f' | 'A'..='F']+)?)) {? Ok(Float::with_val(calc.prec, Float::parse_radix(v, 16).or(Err("number format error"))?)) } /
-              "0b" v:$("-"? $(['0' | '1']+ ("." ['0' | '1']+)?)) {?; Ok(Float::with_val(calc.prec, Float::parse_radix(v, 2).or(Err("number format error"))?)) } /
-              v:$("-"? ['0'..='9']+ ("." ['0'..='9']+)? ("e" float())?) {? Ok(Float::with_val(calc.prec, Float::parse(v).or(Err("number format error"))?)) }
+        rule float_b() -> (Base, Float)
+            = "0x" v:$("-"? $(['0'..='9' | 'a'..='f' | 'A'..='F']+ ("." ['0'..='9' | 'a'..='f' | 'A'..='F']+)?)) {? Ok((Base(16), Float::with_val(calc.prec, Float::parse_radix(v, 16).or(Err("number format error"))?))) } /
+              "0b" v:$("-"? $(['0' | '1']+ ("." ['0' | '1']+)?)) {?; Ok((Base(2), Float::with_val(calc.prec, Float::parse_radix(v, 2).or(Err("number format error"))?))) } /
+              v:$("-"? ['0'..='9']+ ("." ['0'..='9']+)? ("e" float())?) {? Ok((Base(10), Float::with_val(calc.prec, Float::parse(v).or(Err("number format error"))?))) }
 
         // rule digits() -> &'input str
         //     = $(['0'..='9']+)
@@ -19,16 +19,16 @@ peg::parser! {
         // rule decimal() -> &'input str
         //     = $(digits() ("." digits())?)
         
-        rule float() -> Float = float_b()
+        rule float() -> (Base, Float) = float_b()
             // = v:$("-"? decimal() ("e" float())?) {? Ok(Float::with_val(calc.prec, Float::parse(v).or(Err("number format error"))?)) }
         
-        rule num() -> Complex
-            = "(" real:float() ("," / "+")? imaginary:float() "i"? ")" {? Ok(Complex::with_val(calc.prec, (real, imaginary))) } /
-              real:float() "+" imaginary:float() "i" {? Ok(Complex::with_val(calc.prec, (real, imaginary))) } /
-              imaginary:float() "i" {? Ok(Complex::with_val(calc.prec, (Float::new(calc.prec), imaginary))) } /
-              real:float() { Complex::with_val(calc.prec, real) }
+        rule num() -> (Base, Complex)
+            = "(" real:float() ("," / "+")? imaginary:float() "i"? ")" {? Ok((real.0, Complex::with_val(calc.prec, (real.1, imaginary.1)))) } /
+              real:float() "+" imaginary:float() "i" {? Ok((real.0, Complex::with_val(calc.prec, (real.1, imaginary.1)))) } /
+              imaginary:float() "i" {? Ok((imaginary.0, Complex::with_val(calc.prec, (Float::new(calc.prec), imaginary.1)))) } /
+              real:float() { (real.0, Complex::with_val(calc.prec, real.1)) }
 
-        rule number() -> Tag<Complex>
+        rule number() -> Tag<(Base, Complex)>
             = l:position!() v:num() r:position!() { Tag::new(v, l..r) }
             
         rule unit() -> Tag<UnitTree>
@@ -179,15 +179,15 @@ impl<T> Tag<Option<T>> {
 
 #[derive(Debug, Clone)]
 pub enum PUnitValue {
-    UnV { unit: Tag<UnitTree>, value: Tag<Complex> },
-    Dimensionless { value: Tag<Complex> }
+    UnV { unit: Tag<UnitTree>, value: Tag<(Base, Complex)> },
+    Dimensionless { value: Tag<(Base, Complex)> }
 }
 
 impl PUnitValue {
     pub fn as_uv(self) -> UV {
         match self {
-            PUnitValue::UnV { unit, value } => UV { value: value.item, unit: unit.item },
-            PUnitValue::Dimensionless { value } => UV { value: value.item, unit: UnitTree::Product(vec![], None) }
+            PUnitValue::UnV { unit, value: Tag { item: (b, v), .. } } => UV { value: v, unit: unit.item, base: b },
+            PUnitValue::Dimensionless { value: Tag { item: (b, v), .. } } => UV { value: v, unit: UnitTree::Product(vec![], None), base: b }
         }
     }
 }
