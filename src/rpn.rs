@@ -377,7 +377,9 @@ pub enum Function {
     Choose,
     LorentzFactor,
     Drop(usize), Duplicate, Swap, Clear, Clipboard, PrettyPrint, Context,
-    VarGet(String), VarSet(String)
+    VarGet(String), VarSet(String),
+
+    Bin, Dec, Hex
 }
 
 impl Display for Function {
@@ -415,6 +417,10 @@ impl Function {
             Function::Context => None,
             Function::VarGet(_) => None,
             Function::VarSet(_) => None,
+
+            Function::Bin => Some(1),
+            Function::Dec => Some(1),
+            Function::Hex => Some(1),
         }
     }
 
@@ -450,6 +456,9 @@ impl Function {
                 let gamma = Complex::with_val(1024, 1) / (Complex::with_val(1024, 1) - beta.square()).sqrt();
                 Ok(UV { unit: UnitTree::dimensionless(), base, value: gamma })
             }
+            Function::Bin => { Ok(UV { unit: arg.unit, value: arg.value, base: Base(2) }) }
+            Function::Dec => { Ok(UV { unit: arg.unit, value: arg.value, base: Base(10) }) }
+            Function::Hex => { Ok(UV { unit: arg.unit, value: arg.value, base: Base(16) }) }
 
             _ => Err(EvalError::IllegalFunction(self))  // this is so fucking stupid holy shit
         }
@@ -581,6 +590,7 @@ impl Function {
 
                 Ok(())
             }
+
             _ => {
                 let args = calc.pop(self.num_args().expect("you brought this on yourself"))?;
                 calc.stack.push(self.eval_normal(args, calc)?.into());
@@ -619,6 +629,11 @@ impl Function {
             "clipboard" => Some(Function::Clipboard),
             "pretty" => Some(Function::PrettyPrint),
             "context" => Some(Function::Context),
+
+            "bin" => Some(Function::Bin),
+            "dec" => Some(Function::Dec),
+            "hex" => Some(Function::Hex),
+
             _ => {
                 if inp.starts_with("=") {
                     Some(Function::VarSet(inp.strip_prefix("=").unwrap().to_string()))
